@@ -60,7 +60,7 @@ remotes::install_version("Seurat", version = "3.1.2")
 
 # GitHub packages
 
-`
+```
 devtools::install_github("LTLA/BiocNeighbors")  
 devtools::install_github("GfellerLab/EPIC", build_vignettes=TRUE) #requires knitr
 devtools::install_github("xuranw/MuSiC") 
@@ -75,9 +75,9 @@ BiocManager::install("EpiDISH")
 devtools::install_bitbucket("yuanlab/dwls")
 devtools::install_github("Danko-Lab/TED/TED")
 devtools::install_github("chichaumiau/CellMix")
-`
+```
 # SessionInfo()
-`
+```
 R version 3.6.1 (2019-07-05)
 Platform: x86_64-conda_cos6-linux-gnu (64-bit)
 Running under: Red Hat Enterprise Linux Server 7.4 (Maipo)
@@ -212,4 +212,4 @@ loaded via a namespace (and not attached):
 [203] scran_1.14.6                bit_4.0.4                  
 [205] jpeg_0.1-8.1                pkgconfig_2.0.3            
 [207] Rsolnp_1.16                 knitr_1.31    
-`
+```
