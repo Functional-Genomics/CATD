@@ -60,14 +60,26 @@ Both the pseudobulk and the cell type reference are generated from the same data
 In this case, the `self_reference` function in [Master_deconvolution.R](https://github.com/Functional-Genomics/CATD/blob/main/Master_deconvolution.R) is used. 
 
 ## 2. cross-refernce
-When we have two single-cell datasets for the same type of tissue available, one of the dataset can be used to generate pseudobulk and the other one can be used as cell type reference. 
+When we have two reference (single-cell) datasets for the same type of tissue available, one of the dataset can be used to generate pseudobulk and the other one can be used as cell type reference. 
 
 In this case, the `cross_reference` function in [Master_deconvolution.R](https://github.com/Functional-Genomics/CATD/blob/main/Master_deconvolution.R) is used. 
 
 ## 3. real bulk
+When we have real bulk RNA-seq data available, we can deconvolve real bulk data with a single-cell reference dataset. However, there is no way to know the cell type proportion in the bulk dataset in priori. Therefore, we use TWO reference datasets to deconvolve the real bulk dataset. 
+We assume that a program can deconvolve the real bulk dataset with the reference dataset very well (suppose the accuracy is 100%). The resulted cell proportion can be used as a gold standard to compare with the deconvolution using the second reference dataset. There can be possibility that the deconvolution with the two reference datasets are accidentally equally wrong. However, such a situation can be almost excluded after applying the self-reference and cross-reference evaluations. 
 
+The `bulk_reference` function in [Master_deconvolution.R](https://github.com/Functional-Genomics/CATD/blob/main/Master_deconvolution.R) can deconvolve a real bulk dataset with a reference dataset, while the `bulk_2references` function compares the deconvolutions of a real bulk dataset using two reference datasets. 
 
 # Example command
 
-# 
+>> 1. self-reference
+```
+# With the example we provided with this repository + no cell type removed:
+Rscript Master_deconvolution.R example.rds none bulk TMM all nnls 100 none 1
+	#Expected output:
+	#        RMSE   Pearson
+	#1     0.0351    0.9866
+```
+
+
 
