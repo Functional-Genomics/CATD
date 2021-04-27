@@ -48,6 +48,7 @@ cell_10	cell_10	cell_type_1	indiv2
 
 ## Format transformation from python
 Python formatted [AnnData](https://anndata.readthedocs.io/en/latest/anndata.AnnData.html) can be transformed to required ExpressionSet format using the `anndata2expressionset` function in [helper_functions.R](https://github.com/Functional-Genomics/CATD/blob/main/helper_functions.R). 
+An example here: `anndata2expressionset('downsample200/Ximerakis2019.h5', 'downsample200R/Ximerakis2019.rds')`. 
 
 
 # Experimental design
