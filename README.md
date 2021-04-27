@@ -48,10 +48,23 @@ cell_10	cell_10	cell_type_1	indiv2
 
 ## Format transformation from python
 Python formatted [AnnData](https://anndata.readthedocs.io/en/latest/anndata.AnnData.html) can be transformed to required ExpressionSet format using the `anndata2expressionset` function in [helper_functions.R](https://github.com/Functional-Genomics/CATD/blob/main/helper_functions.R). 
+
 An example here: `anndata2expressionset('downsample200/Ximerakis2019.h5', 'downsample200R/Ximerakis2019.rds')`. 
 
 
 # Experimental design
+In this evaluation framework, we have THREE levels of experiments: 1. self-reference, 2. cross-reference and 3. real bulk. 
+## 1. self-reference
+Both the pseudobulk and the cell type reference are generated from the same dataset, which is the same setting as the [Nature Communications](https://doi.org/10.1038/s41467-020-19015-1) paper. 
+
+In this case, the `self_reference` function in [Master_deconvolution.R](https://github.com/Functional-Genomics/CATD/blob/main/Master_deconvolution.R) is used. 
+
+## 2. cross-refernce
+When we have two single-cell datasets for the same type of tissue available, one of the dataset can be used to generate pseudobulk and the other one can be used as cell type reference. 
+
+In this case, the `cross_reference` function in [Master_deconvolution.R](https://github.com/Functional-Genomics/CATD/blob/main/Master_deconvolution.R) is used. 
+
+## 3. real bulk
 
 
 # Example command
