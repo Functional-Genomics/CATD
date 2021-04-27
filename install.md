@@ -5,30 +5,32 @@ We suggest to install all the programs in a [conda](https://anaconda.org/) envir
 The R programs can be classifed into THREE categories: from source codes, from [conda](https://anaconda.org/), from [bioconductor](bioconductor.org) and from [github](https://github.com/).
 
 # Source code packages
-
->> CellMix
+```
+# CellMix
 wget http://web.cbio.uct.ac.za/~renaud/CRAN/src/contrib/CellMix_1.6.2.tar.gz
 R CMD INSTALL CellMix_1.6.2.tar.gz
 
->> DSA
+# DSA
 wget https://github.com/zhandong/DSA/raw/master/Package/version_1.0/DSA_1.0.tar.gz
 R CMD INSTALL DSA_1.0.tar.gz
+```
 
 # conda dependencies
-
->> glmnet
+```
+# glmnet
 conda install -c r r-glmnet
 
->> deconrnaseq
+# deconrnaseq
 conda install -c bioconda bioconductor-deconrnaseq
 
->> ADAPTS dependent
+# ADAPTS dependent
 conda install -c conda-forge r-foreign
 conda install -c conda-forge r-rmisc
 conda install -c conda-forge libcurl
+```
 
 # Bioconductor packages
-`
+```
 if (!requireNamespace("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
@@ -56,7 +58,7 @@ for (i in packages2){ install.packages(i, character.only = TRUE)}
 install.packages('remotes')
 remotes::install_version("SDMTools", "1.1-221")
 remotes::install_version("Seurat", version = "3.1.2")
-`
+```
 
 # GitHub packages
 
