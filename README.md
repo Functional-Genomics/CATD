@@ -11,7 +11,7 @@ The scripts in CATD include Master_deconvolution.R and helper_functions.R, which
 The installation instruction for the deconvolution programs can be found at [install.md](https://github.com/Functional-Genomics/CATD/blob/main/install.md). 
 
 # Input format
-The input data are formatted as [ExpressionSet](https://www.bioconductor.org/packages/release/bioc/vignettes/Biobase/inst/doc/ExpressionSetIntroduction.pdf).
+The input reference data (a single-cell dataset) is formatted as [ExpressionSet](https://www.bioconductor.org/packages/release/bioc/vignettes/Biobase/inst/doc/ExpressionSetIntroduction.pdf).
 ```
 ExpressionSet (storageMode: lockedEnvironment)
 assayData: 80 features, 1000 samples 
@@ -72,7 +72,7 @@ The `bulk_reference` function in [Master_deconvolution.R](https://github.com/Fun
 
 # Example command
 
->> 1. self-reference
+> 1. self-reference
 ```
 # With the example we provided with this repository + no cell type removed:
 Rscript Master_deconvolution.R example.rds none bulk TMM all nnls 100 none 1
@@ -81,5 +81,22 @@ Rscript Master_deconvolution.R example.rds none bulk TMM all nnls 100 none 1
 	#1     0.0351    0.9866
 ```
 
+> 2. cross-reference
+```
+# With the example we provided with this repository + no cell type removed:
+Rscript Master_deconvolution.R example1.rds example2.rds none bulk TMM all nnls 100 none 1
+	#Expected output:
+	#        RMSE   Pearson
+	#1     0.0351    0.9866
+```
+
+> 3. real bulk
+```
+# With the example we provided with this repository + no cell type removed:
+Rscript Master_deconvolution.R bulk.rds example1.rds example2.rds none bulk TMM all nnls 100 none 1
+	#Expected output:
+	#        RMSE   Pearson
+	#1     0.0351    0.9866
+```
 
 
