@@ -215,3 +215,18 @@ loaded via a namespace (and not attached):
 [205] jpeg_0.1-8.1                pkgconfig_2.0.3            
 [207] Rsolnp_1.16                 knitr_1.31    
 ```
+
+# footnote
+```
+ln -s /nfs/leia/research/ma/chichau/bin/anaconda3/lib/libcrypto.so \
+/nfs/leia/research/ma/chichau/bin/anaconda3/x86_64-conda_cos6-linux-gnu/lib
+
+ln -s /nfs/leia/research/ma/chichau/bin/anaconda3/lib/libcurl.so \
+/nfs/leia/research/ma/chichau/bin/anaconda3/x86_64-conda_cos6-linux-gnu/lib
+
+ln -s /nfs/leia/research/ma/chichau/bin/anaconda3/lib/libz.so \
+/nfs/leia/research/ma/chichau/bin/anaconda3/x86_64-conda_cos6-linux-gnu/lib
+
+ln -s /nfs/leia/research/ma/chichau/bin/anaconda3/lib/libssl.so \
+/nfs/leia/research/ma/chichau/bin/anaconda3/x86_64-conda_cos6-linux-gnu/lib
+```

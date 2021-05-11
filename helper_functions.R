@@ -22,13 +22,13 @@ Normalization <- function(data){
 
 }
 
+# Added parameters: sampleCT = FALSE, propsample = TRUE, pct.var=30
 
-
-Generator <- function(sce, phenoData, Num.mixtures = 1000, pool.size = 100, min.percentage = 1, max.percentage = 99, seed = 24){ 
+Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.var=30, Num.mixtures = 1000, pool.size = 100, min.percentage = 1, max.percentage = 99, seed = 24){ 
 
   CT = unique(phenoData$cellType)
   ?stopifnot(length(CT) >= 2)
-  
+    
   set.seed(seed)
   require(dplyr)
   require(gtools)
@@ -44,21 +44,37 @@ Generator <- function(sce, phenoData, Num.mixtures = 1000, pool.size = 100, min.
     #Only allow feasible mixtures based on cell distribution
     while(!exists("P")){
       
-      num.CT.mixture = sample(x = 2:length(CT),1)
-      selected.CT = sample(CT, num.CT.mixture, replace = FALSE)
+      if(sampleCT){
+          num.CT.mixture = sample(x = 3:length(CT),1) # more than 3 cell types to fit a curve.
+#           num.CT.mixture = sample(x = round(length(CT)*0.5):length(CT),1)
+          selected.CT = sample(CT, num.CT.mixture, replace = FALSE)
+      }else{
+          num.CT.mixture = length(CT)
+          selected.CT = CT
+      }
       
-      P = runif(num.CT.mixture, min.percentage, max.percentage) 
+      if(propsample){
+          x = round(runif(num.CT.mixture, 100-pct.var, 100+pct.var))/100.0
+          P = cell.distribution[selected.CT,]$max.n*x
+      }else{
+          P = runif(num.CT.mixture, min.percentage, max.percentage)
+      }
+
       P = round(P/sum(P), digits = log10(pool.size))  #sum to 1
+#       P = round(P/sum(P), digits = 4)  #sum to 1
+
       P = data.frame(CT = selected.CT, expected = P, stringsAsFactors = FALSE)
-      
+
       missing.CT = CT[!CT %in% selected.CT]
       missing.CT = data.frame(CT = missing.CT, expected = rep(0, length(missing.CT)), stringsAsFactors = FALSE)
       
       P = rbind.data.frame(P, missing.CT)
+#       saveRDS(P, "P4.rds")
       potential.mix = merge(P, cell.distribution)
       potential.mix$size = potential.mix$expected * pool.size
       
-      if( !all(potential.mix$max.n >= potential.mix$size) | sum(P$expected) != 1){
+#       if( !all(potential.mix$max.n >= potential.mix$size) | sum(P$expected) != 1){
+      if(sum(P$expected) != 1){
         rm(list="P") 
       }
       
@@ -68,14 +84,16 @@ Generator <- function(sce, phenoData, Num.mixtures = 1000, pool.size = 100, min.
     chosen_cells <- sapply(which(P$expected != 0), function(x){
 
       n.cells = P$expected[x] * pool.size
+#       P$n[x] = n.cells #
+#       chosen = sample(phenoData$cellID[phenoData$cellType == P$CT[x]],
+#                       n.cells)
       chosen = sample(phenoData$cellID[phenoData$cellType == P$CT[x]],
-                      n.cells)
-      
+                      n.cells, replace = TRUE)
       chosen
     }) %>% unlist()
-    
-    
-    T <- Matrix::rowSums(sce[,colnames(sce) %in% chosen_cells]) %>% as.data.frame()
+
+    T <- Matrix::rowSums(sce[,chosen_cells]) %>% as.data.frame()
+#     T <- Matrix::rowSums(sce[,colnames(sce) %in% chosen_cells]) %>% as.data.frame()
     colnames(T) = paste("mix",y,sep="")
 
     P = P[,c("CT","expected")]
@@ -106,9 +124,16 @@ Generator <- function(sce, phenoData, Num.mixtures = 1000, pool.size = 100, min.
 marker.fc <- function(fit2, cont.matrix, log2.threshold = 1, output_name = "markers"){
   
 	topTable_RESULTS = limma::topTable(fit2, coef = 1:ncol(cont.matrix), number = Inf, adjust.method = "BH", p.value = 0.05, lfc = log2.threshold)
+    
+    if(dim(topTable_RESULTS)[1]<1){
+        topTable_RESULTS = limma::topTable(fit2, coef = 1:ncol(cont.matrix), number = Inf, adjust.method = "BH", 
+                                       p.value = 0.05, lfc = 0.1)
+        log2.threshold = 0.1
+    }
+#     saveRDS(topTable_RESULTS, 'topTable_RESULTS.rds' )
 	AveExpr_pval <- topTable_RESULTS[,(ncol(topTable_RESULTS)-3):ncol(topTable_RESULTS)]
 	topTable_RESULTS <- topTable_RESULTS[,1:(ncol(topTable_RESULTS)-4)]
-
+#     saveRDS(topTable_RESULTS, 'topTable_RESULTS1.rds' )
 	if(length(grep("ERCC-",topTable_RESULTS$gene)) > 0){ topTable_RESULTS <- topTable_RESULTS[-grep("ERCC-",topTable_RESULTS$gene),] }
 
 	markers <- apply(topTable_RESULTS,1,function(x){
@@ -116,9 +141,11 @@ marker.fc <- function(fit2, cont.matrix, log2.threshold = 1, output_name = "mark
 	((temp[ncol(topTable_RESULTS)] - temp[ncol(topTable_RESULTS)-1]) >= log2.threshold) | (abs(temp[1] - temp[2]) >= log2.threshold)
 
 	})
-
+# print('===1')  
+#     saveRDS(topTable_RESULTS, 'topTable_RESULTS2.rds' )
 	topTable_RESULTS = topTable_RESULTS[markers,]
-
+# print('===2')
+#     saveRDS(topTable_RESULTS, 'topTable_RESULTS3.rds' )
 	markers <- cbind.data.frame(rownames(topTable_RESULTS),
 	                                   t(apply(topTable_RESULTS, 1, function(x){
 	                                     temp = max(x)
@@ -129,11 +156,11 @@ marker.fc <- function(fit2, cont.matrix, log2.threshold = 1, output_name = "mark
 	                                     } 
 	                                     temp
 	                                   })))
-
+# print('===3')  
 	colnames(markers) <- c("gene","log2FC","CT")
 	markers$log2FC = as.numeric(as.character(markers$log2FC))
 	markers <- markers %>% dplyr::arrange(CT,desc(log2FC)) 
-
+# print('===4')  
 	markers$AveExpr <- AveExpr_pval$AveExpr[match(markers$gene,rownames(AveExpr_pval))]
 	markers$gene <- as.character(markers$gene)
 	markers$CT <- as.character(markers$CT)
@@ -703,11 +730,9 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
         RESULTS = coef(fit)
 
     } else if (method == "DWLS"){
-print('----0')        
 #         require(DWLS)
         source('./DWLS_functions.R')
         path=paste(getwd(),"/results_",STRING,sep="")
-print('----1')
         if(! dir.exists(path)){ #to avoid repeating marker_selection step when removing cell types; Sig.RData automatically created
 
             print(1)
@@ -731,7 +756,6 @@ print('----1')
             }
             
         }
-print('----2')        
         RESULTS <- apply(T,2, function(x){
             b = setNames(x, rownames(T))
             tr <- trimData(Signature, b)
@@ -739,7 +763,7 @@ print('----2')
 #             tr <- DWLS::trimData(Signature, b)
 #             RES <- t(DWLS::solveDampenedWLS(tr$sig, tr$bulk))
         })
-print('----3')
+
         rownames(RESULTS) <- as.character(unique(phenoDataC$cellType))
         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
         RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
@@ -794,6 +818,7 @@ print('----3')
 
 }
 
+########### New Functions ###############################
 read_h5<-function(h5file){
     suppressPackageStartupMessages(library(reticulate))
     suppressPackageStartupMessages(library(Matrix))
@@ -876,4 +901,74 @@ anndata2expressionset<-function(h5file, save){
     df = read_h5(h5file)
     ad = Biobase::ExpressionSet(assayData = as.matrix(df$X),phenoData = Biobase::AnnotatedDataFrame(df$obs))
     saveRDS(ad, save)
+}
+
+library(ggplot2)
+library(DeconRNASeq)                    
+plotTopResults<-function(x, n=9, ncols=3){
+    parray <- ggplot()
+    length(parray) <- n
+    i = 1
+    for(ts in head(unique(x$tissue), n=n)){
+        y = x[x$tissue==ts,]
+    parray[[i]]<-ggplot(y, aes(x=observed_values, y=expected_values)) + geom_point(alpha=.6, color="blue")+
+      geom_abline(intercept=0, slope=1, colour = "red", size = 1)
+        i=i+1
+    }
+    g<-DeconRNASeq::multiplot(plotlist = parray, cols=ncols)
+    return(g)
+}
+                        
+plotAllResults<-function(x, n=9, ncols=3, title=''){
+    p<-ggplot(x, aes(x=observed_values, y=expected_values)) + geom_point(color='blue', alpha=0.4)+
+  geom_smooth(method=lm, color='red')+ggtitle(title)
+    return(p)
+}
+                        
+evaluation_metrics<-function(RESULTS, mode=1){
+    # return the evaluation metrics
+    
+    if(mode==1){
+        x = RESULTS %>% dplyr::summarise(RMSE = sqrt(mean((observed_values-expected_values)^2)) %>% round(.,4), 
+										   Pearson=cor(observed_values,expected_values) %>% round(.,4))
+        y = RESULTS %>% dplyr::group_by(tissue) %>% 
+                        dplyr::summarise(RMSE = sqrt(mean((observed_values-expected_values)^2)) %>% round(.,4), 
+                                           Pearson=cor(observed_values,expected_values) %>% round(.,4)) %>% 
+                        dplyr::summarise(mRMSE = mean(RMSE), mPearson = mean(Pearson))
+        x = cbind(x,y)
+    }else{
+        x = RESULTS %>% dplyr::summarise(RMSE = sqrt(mean((observed_values.x-observed_values.y)^2)) %>% round(.,4), 
+										   Pearson=cor(observed_values.x,observed_values.y) %>% round(.,4))
+        y = RESULTS %>% dplyr::group_by(tissue) %>% 
+                        dplyr::summarise(RMSE = sqrt(mean((observed_values.x-expected_values.y)^2)) %>% round(.,4), 
+                                           Pearson=cor(observed_values.x,expected_values.y) %>% round(.,4)) %>% 
+                        dplyr::summarise(mRMSE = mean(RMSE), mPearson = mean(Pearson))
+        x = cbind(x,y)
+    }
+    return(x)
+}
+                        
+evaluation_table<-function(RESULTS, mode=1){
+    # return the evaluation table
+    
+    if(mode==1){
+        x = RESULTS %>% dplyr::group_by(tissue) %>% 
+                        dplyr::summarise(RMSE = sqrt(mean((observed_values-expected_values)^2)) %>% round(.,4), 
+                                           Pearson=cor(observed_values,expected_values) %>% round(.,4))
+    }else{
+        x = RESULTS %>% dplyr::group_by(tissue) %>% 
+                        dplyr::summarise(RMSE = sqrt(mean((observed_values.x-expected_values.y)^2)) %>% round(.,4), 
+                                           Pearson=cor(observed_values.x,expected_values.y) %>% round(.,4))
+    }
+    return(x)
+}
+                        
+getname<-function(params){
+    n = ''
+    for( i in params){
+        j = unlist(strsplit(i, "/"))
+        j = gsub('.rds','',dplyr::last(j))
+        n = paste0(n, j, sep = ".")
+    }
+    return(n)
 }

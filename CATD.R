@@ -112,9 +112,9 @@ prepare_train<-function(train, train_cell_names){
 	return(list('train_cellID'=train_cellID, 'C'=C, 'ref' = refProfiles.var, 'markers'=markers))
 }
 
-self_reference<-function(args){
+self_reference<-function(param){
 	
-	if(length(args)!=9){
+	if(length(param)!=11){
 
 		print("Please check that all required parameters are indicated or are correct")
 		print("Example usage for bulk deconvolution methods: 'Rscript Master_deconvolution.R baron none bulk TMM all nnls 100 none 1'")
@@ -134,27 +134,39 @@ self_reference<-function(args){
 	# 7: number of cells used
 	# 8: remove cell type or not (none: default)
 	# 9: number of cores used.
+	# 10: sampleCT.
+	# 11: propsample.
 
-	dataset = args[1]
-	transformation = args[2]
-	deconv_type = args[3]
+	dataset = param[1]
+	transformation = param[2]
+	deconv_type = param[3]
 
 	if(deconv_type == "bulk"){
-		normalization = args[4]
-		marker_strategy = args[5]
+		normalization = param[4]
+		marker_strategy = param[5]
 	} else if (deconv_type == "sc") {
-		normalization_scC = args[4]
-		normalization_scT = args[5]
+		normalization_scC = param[4]
+		normalization_scT = param[5]
 	} else {
 		print("Please enter a valid deconvolution framework")
 		stop()
 	}
 
-	method = args[6]
-	number_cells = round(as.numeric(args[7]), digits = -2) #has to be multiple of 100
-	to_remove = args[8]
-	num_cores = min(as.numeric(args[9]),parallel::detectCores()-1)
-
+	method = param[6]
+	number_cells = round(as.numeric(param[7]), digits = -2) #has to be multiple of 100
+	to_remove = param[8]
+	num_cores = min(as.numeric(param[9]),parallel::detectCores()-1)
+	if(param[10]=='T'){
+        sampleCT = TRUE
+    }else{
+        sampleCT = FALSE
+    }
+    if(param[11]=='T'){
+        propsample = TRUE
+    }else{
+        propsample = FALSE
+    }
+    
 	#-------------------------------------------------------
 	### Read single cell data and metadata
 	X = read_data(dataset)
@@ -181,7 +193,7 @@ self_reference<-function(args){
 	test <- X$data[,testing]
 	colnames(test) <- X$original_cell_names[testing]
 
-	Xtest <- Generator(sce = test, phenoData = X$pData, Num.mixtures = 1000, pool.size = number_cells)
+	Xtest <- Generator(sce = test, phenoData = X$pData[testing,], sampleCT = sampleCT, propsample = propsample, Num.mixtures = 1000, pool.size = number_cells)
 	P <- Xtest$P
 
 	#-------------------------------------------------------
@@ -231,15 +243,18 @@ self_reference<-function(args){
 	# P is the preassigned proportion for the pseudo-bulk
 	# pDataC is the meta-data for the reference
 	RESULTS = Deconvolution(T = T, C = C, method = method, P = P, elem = to_remove, refProfiles.var = Xtrain$ref, STRING = as.character(sample(1:10000, 1)), marker_distrib = marker_distrib, phenoDataC = pDataC) 
-	RESULTS = RESULTS %>% dplyr::summarise(RMSE = sqrt(mean((observed_values-expected_values)^2)) %>% round(.,4), 
-										   Pearson=cor(observed_values,expected_values) %>% round(.,4))
-	print(RESULTS)
+    
+#     saveRDS(RESULTS, 'RESULTS.rds')
+    
+# 	RESULTS = RESULTS %>% dplyr::summarise(RMSE = sqrt(mean((observed_values-expected_values)^2)) %>% round(.,4), 
+# 										   Pearson=cor(observed_values,expected_values) %>% round(.,4))
+# 	print(RESULTS)
 	return(RESULTS)
 }
 
-cross_reference<-function(args){
+cross_reference<-function(param){
 	
-	if(length(args)!=10){
+	if(length(param)!=12){
 
 		print("Please check that all required parameters are indicated or are correct")
 		print("Example usage for bulk deconvolution methods: 'Rscript Master_deconvolution.R baron none bulk TMM all nnls 100 none 1'")
@@ -250,8 +265,8 @@ cross_reference<-function(args){
 	flag = FALSE
 
 	### arguments
-	# 1: dataset1 name
-	# 2: dataset2 name
+	# 1: dataset1 name for reference
+	# 2: dataset2 name for pseudobulk
 	# 3: Transformation: none (defalt), log, sqrt, vst
 	# 4: deconvolution type: bulk, sc
 	# 5: Normalization for C, normalization
@@ -260,27 +275,39 @@ cross_reference<-function(args){
 	# 8: number of cells used
 	# 9: remove cell type or not (none: default)
 	# 10: number of cores used.
+	# 11: sampleCT.
+	# 12: propsample.
 
-	dataset1 = args[1]
-	dataset2 = args[2]
-	transformation = args[3]
-	deconv_type = args[4]
+	dataset1 = param[1]
+	dataset2 = param[2]
+	transformation = param[3]
+	deconv_type = param[4]
 
 	if(deconv_type == "bulk"){
-		normalization = args[5]
-		marker_strategy = args[6]
+		normalization = param[5]
+		marker_strategy = param[6]
 	} else if (deconv_type == "sc") {
-		normalization_scC = args[5]
-		normalization_scT = args[6]
+		normalization_scC = param[5]
+		normalization_scT = param[6]
 	} else {
 		print("Please enter a valid deconvolution framework")
 		stop()
 	}
 
-	method = args[7]
-	number_cells = round(as.numeric(args[8]), digits = -2) #has to be multiple of 100
-	to_remove = args[9]
-	num_cores = min(as.numeric(args[10]),parallel::detectCores()-1)
+	method = param[7]
+	number_cells = round(as.numeric(param[8]), digits = -2) #has to be multiple of 100
+	to_remove = param[9]
+	num_cores = min(as.numeric(param[10]),parallel::detectCores()-1)
+    if(param[11]=='T'){
+        sampleCT = TRUE
+    }else{
+        sampleCT = FALSE
+    }
+    if(param[12]=='T'){
+        propsample = TRUE
+    }else{
+        propsample = FALSE
+    }
 
 	#-------------------------------------------------------
 	### Read single cell data and metadata
@@ -311,7 +338,7 @@ cross_reference<-function(args){
 	test <- X2$data
 	colnames(test) <- X2$original_cell_names
 
-	Xtest <- Generator(sce = test, phenoData = X2$pData, Num.mixtures = 1000, pool.size = number_cells)
+	Xtest <- Generator(sce = test, phenoData = X2$pData, Num.mixtures = 1000, sampleCT = sampleCT, propsample = propsample, pool.size = number_cells)
 	P <- Xtest$P
 
 	#-------------------------------------------------------
@@ -356,9 +383,9 @@ cross_reference<-function(args){
 		marker_distrib = NULL
 	}
 	RESULTS = Deconvolution(T = T, C = C, method = method, P = P, elem = to_remove, refProfiles.var = Xtrain$ref, STRING = as.character(sample(1:10000, 1)), marker_distrib = marker_distrib, phenoDataC = pDataC) 
-	RESULTS = RESULTS %>% dplyr::summarise(RMSE = sqrt(mean((observed_values-expected_values)^2)) %>% round(.,4), 
-										   Pearson=cor(observed_values,expected_values) %>% round(.,4))
-	print(RESULTS)
+# 	RESULTS = RESULTS %>% dplyr::summarise(RMSE = sqrt(mean((observed_values-expected_values)^2)) %>% round(.,4), 
+# 										   Pearson=cor(observed_values,expected_values) %>% round(.,4))
+# 	print(RESULTS)
 	return(RESULTS)
 }
 
@@ -376,7 +403,7 @@ bulk_reference<-function(param){
 
 	### arguments
 	# 1: bulk name
-	# 2: dataset name
+	# 2: reference dataset name
 	# 3: Transformation: none (defalt), log, sqrt, vst
 	# 4: deconvolution type: bulk, sc
 	# 5: Normalization for C, normalization
@@ -491,9 +518,9 @@ bulk_reference<-function(param){
 	return(RESULTS)
 }
 
-bulk_2references<-function(args){
+bulk_2references<-function(param){
 	
-	if(length(args)!=11){
+	if(length(param)!=11){
 
 		print("Please check that all required parameters are indicated or are correct")
 		print("Example usage for bulk deconvolution methods: 'Rscript Master_deconvolution.R baron none bulk TMM all nnls 100 none 1'")
@@ -516,8 +543,8 @@ bulk_2references<-function(args){
 	# 10: remove cell type or not (none: default)
 	# 11: number of cores used.
 	
-	param1<-c(args[1], args[2], args[4], args[5], args[6], args[7], args[8], args[9], args[10], args[11])
-	param2<-c(args[1], args[3], args[4], args[5], args[6], args[7], args[8], args[9], args[10], args[11])
+	param1<-c(param[1], param[2], param[4], param[5], param[6], param[7], param[8], param[9], param[10], param[11])
+	param2<-c(param[1], param[3], param[4], param[5], param[6], param[7], param[8], param[9], param[10], param[11])
 	
 	RESULTS1 = bulk_reference(param1)
 	RESULTS2 = bulk_reference(param2)
@@ -527,15 +554,17 @@ bulk_2references<-function(args){
     
     RESULTS = merge(RESULTS1, RESULTS2, by=c("CT","tissue"))
     
-    RESULTS = RESULTS %>% dplyr::summarise(RMSE = sqrt(mean((observed_values.x-observed_values.y)^2)) %>% round(.,4), 
-										   Pearson=cor(observed_values.x,observed_values.y) %>% round(.,4))
+#     RESULTS = RESULTS %>% dplyr::summarise(RMSE = sqrt(mean((observed_values.x-observed_values.y)^2)) %>% round(.,4), 
+# 										   Pearson=cor(observed_values.x,observed_values.y) %>% round(.,4))
 	return(RESULTS)
 }
 
-
-
-#~ self_reference(args)
-
-#~ cross_reference(args)
-
-bulk_2references(args)
+if(args[1]=='s'){
+	RESULTS = self_reference(args[2:length(args)])
+}else if(args[1]=='c'){
+	RESULTS = cross_reference(args[2:length(args)])
+}else if(args[1]=='b'){
+	RESULTS = bulk_2references(args[2:length(args)])
+}
+name = getname(args)
+saveRDS(RESULTS, paste0("RDS/",name,"rds"))
