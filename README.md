@@ -1,6 +1,7 @@
+<pre>
+
 <img src="https://github.com/Functional-Genomics/CATD/blob/main/CATD.jpg" alt="drawing" width="100"/>
 
-<pre>
   /$$$$$$   /$$$$$$  /$$$$$$$$ /$$$$$$$ 
  /$$__  $$ /$$__  $$|__  $$__/| $$__  $$
 | $$  \__/| $$  \ $$   | $$   | $$  \ $$
