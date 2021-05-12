@@ -1,5 +1,5 @@
 <pre>
-<img src="https://github.com/Functional-Genomics/CATD/blob/main/CATD.jpg" alt="drawing" width="100"/>
+<img src="https://github.com/Functional-Genomics/CATD/blob/main/CATD.jpg" alt="drawing" width="120"/>
 
   /$$$$$$   /$$$$$$  /$$$$$$$$ /$$$$$$$ 
  /$$__  $$ /$$__  $$|__  $$__/| $$__  $$
