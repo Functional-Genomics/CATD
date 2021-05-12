@@ -1,7 +1,8 @@
 <pre>
-
+<div class="column" style="background-color:#FFB695;">
 <img src="https://github.com/Functional-Genomics/CATD/blob/main/CATD.jpg" alt="drawing" width="100"/>
-
+</div>
+<div class="column" style="background-color:#FFB695;">
   /$$$$$$   /$$$$$$  /$$$$$$$$ /$$$$$$$ 
  /$$__  $$ /$$__  $$|__  $$__/| $$__  $$
 | $$  \__/| $$  \ $$   | $$   | $$  \ $$
@@ -10,6 +11,7 @@
 | $$    $$| $$  | $$   | $$   | $$  | $$
 |  $$$$$$/| $$  | $$   | $$   | $$$$$$$/
  \______/ |__/  |__/   |__/   |_______/ 
+</div>
 </pre>                                 
 
 
