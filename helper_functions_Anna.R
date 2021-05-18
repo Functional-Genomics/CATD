@@ -1,6 +1,7 @@
 source('./CIBERSORT.R')
 
-source('/DWLS.R') ###DWLS_functions
+source('./DWLS.R') ###DWLS_functions
+source("./TIMER.R") ####TIMER functions adapted from github LiuzLab/paper_deconvBenchmark
 
 options(stringsAsFactors = FALSE)
 
@@ -26,6 +27,7 @@ Normalization <- function(data){
 }
 
 # Added parameters: sampleCT = FALSE, propsample = TRUE, pct.var=30
+###Could you comment here to explain each parameter? ## Anna ##
 
 Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.var=30, Num.mixtures = 1000, pool.size = 100, min.percentage = 1, max.percentage = 99, seed = 24){ 
 
@@ -317,8 +319,7 @@ Scaling <- function(matrix, option, phenoDataC=NULL){
 
     } else if (option=="TMM"){# CPM counts coming from TMM-normalized library sizes; https://support.bioconductor.org/p/114798/
 
-#         saveRDS(phenoDataC,'phenoDataC.rds')
-#         saveRDS(matrix,'matrix.rds')
+
         
         if(!is.null(phenoDataC)){#use CT info for scRNA-seq
 
@@ -469,10 +470,17 @@ Scaling <- function(matrix, option, phenoDataC=NULL){
 
 #################################################
 ##########    DECONVOLUTION METHODS    ##########
-# T is pseudo-bulk
+# T is pseudo-bulk (matrix)
+# C is single-cell reference (matrix)                      
+#T.eset is pseudo-bulk (ExpressionSet) 
+#C.eset is single-cell reference (ExpressionSet)                        
 Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRING = NULL, marker_distrib, refProfiles.var){ 
 
-    bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso","ridge","EPIC","DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "spillOver", "svmdecon", "EpiDISH")
+    bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP",
+                     "RLR","DCQ","elasticNet","lasso","ridge",
+                     "EPIC","DSA","ssKL","ssFrobenius","dtangle", 
+                     "deconf", "proportionsInAdmixture","TIMER","CAMmarker", "CDSeq", 
+                     "EpiDISH")
     sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc")
 
 # print('----a')
@@ -483,10 +491,10 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
         T = T[rownames(T) %in% marker_distrib$gene,]
         refProfiles.var = refProfiles.var[rownames(refProfiles.var) %in% marker_distrib$gene,]
 
-    } else { ### For scRNA-seq methods #BisqueRNA requires "SubjectName" in phenoDataC
+    } else { ### For scRNA-seq methods # for example BisqueRNA requires "SubjectName" column in phenoDataC
         
             print(1)
-            sample_column = grep("sampleID",colnames(phenoDataC))  ##Anna## curated datasets have "sampleID" column always
+            sample_column = grep("sampleID",colnames(phenoDataC))  ##Anna## curated datasets have "sampleID" column always , all datasets must have more than one sampleID
         }
     
         colnames(phenoDataC)[sample_column] = "SubjectName"
@@ -504,8 +512,9 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
     keep = intersect(rownames(C),rownames(T)) 
     C = C[keep,]
     T = T[keep,]
-# print('----e')
-    ###################################
+
+    ################ Implemented deconvolution methods n=27 methods      ###################
+                       
     if(method=="CIBERSORT"){ #without QN. By default, CIBERSORT performed QN (only) on the mixture.
 
         write.table(C, file = xf <- 'reference.tsv', sep = "\t", row.names = TRUE, col.names = NA)
@@ -567,23 +576,6 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
         RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
 
-#     } else if (method=="spillOver"){#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default
-
-#         require(ADAPTS)
-#         RESULTS = ADAPTS::estCellPercent(refExpr = C, geneExpr = T, method="spillOver")
-# #         print(RESULTS)
-#         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-#         RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
-#     } else if (method=="svmdecon"){#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default
-
-#         require(ADAPTS)
-# #         RESULTS = ADAPTS::estCellPercent(refExpr = C, geneExpr = T, method="svmdecon")
-#         RESULTS = ADAPTS::estCellPercent.svmdecon(refExpr = C, geneExpr = T)
-# #         print(RESULTS)
-#         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-#         RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
     } else if (method=="CPM"){#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default
 
         require(scBio)
@@ -592,7 +584,6 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
         p <- prcomp(t(C), center = TRUE,scale. = TRUE)$x[,1:2]
         celltypes.sc = as.character(phenoDataC$cellType)
         RESULTS = t(CPM(C, celltypes.sc, TReduced, p, quantifyTypes = T, no_cores = 6)$cellTypePredictions)
-#         print(RESULTS)
         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
         RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
 
@@ -600,11 +591,8 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
 
         require(EpiDISH)
         RESULTS = t(EpiDISH::epidish(beta.m = T, ref.m = C, method = "RPC")$estF)
-#         print(RESULTS)
         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
         RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-#         print(RESULTS)
-#         saveRDS(RESULTS, 'EpiDISH.rds')
 
     } else if (method=="elasticNet"){#standardize = TRUE by default. lambda=NULL by default 
 
@@ -696,9 +684,56 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
         MD <- lapply(MD,function(x) sapply(x, function(y) which(y==rownames(C))))
 
         RESULTS = t(dtangle::dtangle(Y=mixture_samples, reference=reference_samples, markers = MD)$estimates)
+    
+    } else if (method=="TIMER"){
+         
+        
+        ref_anno <- pData$cellID
+        names(ref_anno)<- pData$cellType
+        print(ref_anno)
+        print(rownames(marker_distrib))
+        RESULTS=t(TIMER_deconv(T, data, ref_anno, rownames(marker_distrib)))
+        CDSeq(bulk_data =  T, cell_type_number = 10, mcmc_iterations = 1000, reference_gep = C, cpu_number=1)
+        
+    } else if (method=="CAMmarker"){ 
 
-    ###################################
-    ###################################
+        library(debCAM)
+        md = marker_distrib #Full version, irrespective of C
+
+        ML = CellMix::MarkerList()
+        ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
+        RESULTS = t(AfromMarkers(T, ML))
+        colnames(RESULTS) <- colnames(T)
+        rownames(RESULTS) <- names(ML)
+        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
+                        
+        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
+        
+       
+                    
+           
+         
+    } else if (method=="CDSeq"){
+         
+
+        dseq.result<-CDSeq::CDSeq(bulk_data =  T, cell_type_number = length(colnames(C)), mcmc_iterations = 1000, reference_gep = C, cpu_number=10)
+        cdseq.result.celltypeassign <- cellTypeAssignSCRNA(cdseq_gep = cdseq.result$estGEP,
+                                                   cdseq_prop = cdseq.result$estProp,
+                                                   sc_gep = C,         
+                                                   sc_annotation = colnames(C),
+                                                   sc_pt_size = 3,
+                                                   cdseq_pt_size = 6,
+                                                   seurat_nfeatures = 100,
+                                                   seurat_npcs = 50,
+                                                   seurat_dims=1:5,
+                                                   plot_umap = 1,
+                                                   plot_tsne = 0)
+         print(cdseq.result.celltypeassign)
+                                           
+                                      
+
+    ###################################  Single-cell deconvolutions that have been implemented follow : ###########
+
     
     } else if (method == "MuSiC"){ ##Anna##  sampleID = "Subject Name" is needed
 
@@ -722,23 +757,20 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
 
     } else if (method == "DWLS"){ 
         
-        source('./DWLS_functions.R')
         for (i in dataset){
             
         path=paste(getwd(),"/DWLS_Sig_",i,sep="")
+            
             }
         if(! dir.exists(path)){ #to avoid repeating marker_selection step when removing cell types; Sig.RData automatically created
-             message("* path to signature doesn't exist ... ", appendLF = FALSE)
-            
-
-            print(1)
+             
+            message("* path to signature doesn't exist ... ", appendLF = FALSE)
             dir.create(path)
             Signature <- buildSignatureMatrixMAST(scdata = C, id = as.character(phenoDataC$cellType), path = path, diff.cutoff = 0.5, pval.cutoff = 0.01)
-#             Signature <- DWLS::buildSignatureMatrixMAST(scdata = C, id = as.character(phenoDataC$cellType), path = path, diff.cutoff = 0.5, pval.cutoff = 0.01)
-
+            
         } else {#re-load signature and remove CT column + its correspondent markers
             
-            message("* Signature is already created ... ", appendLF = FALSE)
+            message("* Signature has been already created ... ", appendLF = FALSE)
             load(paste(path,"Sig.RData",sep="/"))
             Signature <- Sig
             
@@ -757,8 +789,7 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
             b = setNames(x, rownames(T))
             tr <- trimData(Signature, b)
             RES <- t(solveDampenedWLS(tr$sig, tr$bulk))
-#             tr <- DWLS::trimData(Signature, b)
-#             RES <- t(DWLS::solveDampenedWLS(tr$sig, tr$bulk))
+
         })
 
         rownames(RESULTS) <- as.character(unique(phenoDataC$cellType))
@@ -785,7 +816,7 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
         dge.tissue = deconvSeq::getdge(tissuedata, NULL, ncpm.min = 1, nsamp.min = 4, method = "bin.loess")
 
         RESULTS = t(deconvSeq::getx1.rnaseq(NB0 = "top_fdr",b0.singlecell, dge.tissue)$x1) #genes with adjusted p-values <0.05 after FDR correction
-#         print(RESULTS)
+        
 
     } else if (method == "SCDC"){ ####Anna SubjectName needed ##Proportion estimation with traditional deconvolution + >1 subject
 
