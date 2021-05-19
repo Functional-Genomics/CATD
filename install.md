@@ -27,6 +27,18 @@ conda install -c bioconda bioconductor-deconrnaseq
 conda install -c conda-forge r-foreign
 conda install -c conda-forge r-rmisc
 conda install -c conda-forge libcurl
+
+# CAMTHC
+conda install -c r r-rjava
+conda install -c conda-forge r-pcapp
+conda install -c conda-forge r-dmwr
+
+# CDSeq
+conda install -c conda-forge r-slam
+
+# Seurat
+conda install -c conda-forge r-seuratdisk
+conda install -c conda-forge r-seurat
 ```
 
 # Bioconductor packages
@@ -47,7 +59,7 @@ packages <- c("devtools", "BiocManager","data.table","ggplot2","tidyverse",
 
 for (i in packages){ install.packages(i, character.only = TRUE)}
 
-packages3 = c('limma','edgeR','DESeq2','pcaMethods','BiocParallel','preprocessCore','scater','SingleCellExperiment','Linnorm','DeconRNASeq','multtest','GSEABase','annotate','genefilter','preprocessCore','graph','MAST','Biobase') #last two are required by DWLS and MuSiC, respectively.
+packages3 = c('debCAM','limma','edgeR','DESeq2','pcaMethods','BiocParallel','preprocessCore','scater','SingleCellExperiment','Linnorm','DeconRNASeq','multtest','GSEABase','annotate','genefilter','preprocessCore','graph','MAST','Biobase') #last two are required by DWLS and MuSiC, respectively.
 for (i in packages3){ BiocManager::install(i, character.only = TRUE)}
 
 # Dependencies for CellMix: 'NMF', 'csSAM', 'GSEABase', 'annotate', 'genefilter', 'preprocessCore', 'limSolve', 'corpcor', 'graph', 'BiocInstaller'
@@ -77,6 +89,8 @@ BiocManager::install("EpiDISH")
 devtools::install_bitbucket("yuanlab/dwls")
 devtools::install_github("Danko-Lab/TED/TED")
 devtools::install_github("chichaumiau/CellMix")
+devtools::install_github("Lululuella/CAMTHC")
+devtools::install_github("kkang7/CDSeq_R_Package")
 ```
 # SessionInfo()
 ```
@@ -229,4 +243,17 @@ ln -s /nfs/leia/research/ma/chichau/bin/anaconda3/lib/libz.so \
 
 ln -s /nfs/leia/research/ma/chichau/bin/anaconda3/lib/libssl.so \
 /nfs/leia/research/ma/chichau/bin/anaconda3/x86_64-conda_cos6-linux-gnu/lib
+
+ln -s /nfs/leia/research/ma/chichau/bin/anaconda3/lib/libgfortran.so \
+/nfs/leia/research/ma/chichau/bin/anaconda3/x86_64-conda_cos6-linux-gnu/lib
+
+ln -s /nfs/leia/research/ma/chichau/bin/anaconda3/lib/libgomp.so \
+/nfs/leia/research/ma/chichau/bin/anaconda3/x86_64-conda_cos6-linux-gnu/lib/
+
+ln -s /nfs/leia/research/ma/chichau/bin/anaconda3/lib/libquadmath.so \
+/nfs/leia/research/ma/chichau/bin/anaconda3/x86_64-conda_cos6-linux-gnu/lib/
+
+cd /nfs/leia/research/ma/chichau/bin/anaconda3/lib/R/etc
+cp ../../../pkgs/r-base-3.6.1-h9bb98a2_1/lib/R/etc/Makeconf .
+
 ```
