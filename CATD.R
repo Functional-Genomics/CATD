@@ -5,10 +5,15 @@ set.seed(24)
 require(limma); require(dplyr); require(pheatmap); require(Matrix)
 args <- commandArgs(trailingOnly=TRUE)
 
-read_data<-function(dataset){
+read_data<-function(dataset, format='seurat'){
 	ad = readRDS(dataset)
-	data = ad@assayData$exprs
-	pData = ad@phenoData@data
+	if(format=='seurat'){
+		data = ad@assays$RNA@counts
+		pData = ad@meta.data
+	}else{
+		data = ad@assayData$exprs
+		pData = ad@phenoData@data
+	}
 	rownames(pData)<-NULL
 
 	original_cell_names = colnames(data)

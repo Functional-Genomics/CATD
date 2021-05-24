@@ -6,10 +6,6 @@ The R programs can be classifed into THREE categories: from source codes, from [
 
 # Source code packages
 ```
-# CellMix
-wget http://web.cbio.uct.ac.za/~renaud/CRAN/src/contrib/CellMix_1.6.2.tar.gz
-R CMD INSTALL CellMix_1.6.2.tar.gz
-
 # DSA
 wget https://github.com/zhandong/DSA/raw/master/Package/version_1.0/DSA_1.0.tar.gz
 R CMD INSTALL DSA_1.0.tar.gz
@@ -63,13 +59,11 @@ packages3 = c('debCAM','limma','edgeR','DESeq2','pcaMethods','BiocParallel','pre
 for (i in packages3){ BiocManager::install(i, character.only = TRUE)}
 
 # Dependencies for CellMix: 'NMF', 'csSAM', 'GSEABase', 'annotate', 'genefilter', 'preprocessCore', 'limSolve', 'corpcor', 'graph', 'BiocInstaller'
-packages2 = c('NMF','csSAM','limSolve','corpcor')
+packages2 = c('NMF','csSAM','limSolve','corpcor','pkgmaker', 'NMF', 'csSAM', 'registry', 'stringr', 'GSEABase', 'Biobase', 'BiocGenerics', 'annotate', 'matrixStats', 'genefilter', 'AnnotationDbi', 'RSQLite', 'DBI', 'preprocessCore', 'limSolve', 'quadprog', 'corpcor', 'xtable', 'gtools', 'beeswarm', 'graph', 'BiocInstaller', 'bibtex', 'digest', 'ggplot2', 'plyr')
 for (i in packages2){ install.packages(i, character.only = TRUE)}
 
 
 install.packages('remotes')
-remotes::install_version("SDMTools", "1.1-221")
-remotes::install_version("Seurat", version = "3.1.2")
 ```
 
 # GitHub packages
