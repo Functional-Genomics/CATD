@@ -2,6 +2,7 @@ source('./CIBERSORT.R')
 
 source('./DWLS.R') ###DWLS_functions
 source("./TIMER.R") ####TIMER functions adapted from github LiuzLab/paper_deconvBenchmark
+library(dplyr)
 
 options(stringsAsFactors = FALSE)
 

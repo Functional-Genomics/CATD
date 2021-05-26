@@ -204,11 +204,19 @@ self_reference<-function(param){
 	#-------------------------------------------------------
 	### Transformation, scaling/normalization, marker selection for bulk deconvolution methods and deconvolution:
 	if(deconv_type == "bulk"){
-		T = Transformation(Xtest$T, transformation)
-		C = Transformation(Xtrain$C, transformation)
+#~ 		T = Transformation(Xtest$T, transformation)
+#~ 		C = Transformation(Xtrain$C, transformation)
 
-		T = Scaling(T, normalization)
-		C = Scaling(C, normalization)
+#~ 		T = Scaling(T, normalization)
+#~ 		C = Scaling(C, normalization)
+		
+		T = Scaling(Xtest$T, normalization)
+		C = Scaling(Xtrain$C, normalization)
+		
+		T = Transformation(T, transformation)
+		C = Transformation(C, transformation)
+
+		
 
 		# marker selection (on training data) 
 		marker_distrib = marker_strategies(Xtrain$markers, marker_strategy, C)
@@ -225,11 +233,17 @@ self_reference<-function(param){
 
 	} else if (deconv_type == "sc"){
 
-		T = Transformation(Xtest$T, transformation)
-		C = Transformation(Xtrain$train_cellID, transformation)
+#~ 		T = Transformation(Xtest$T, transformation)
+#~ 		C = Transformation(Xtrain$train_cellID, transformation)
 
-		T = Scaling(T, normalization_scT)
-		C = Scaling(C, normalization_scC)
+#~ 		T = Scaling(T, normalization_scT)
+#~ 		C = Scaling(C, normalization_scC)
+
+		T = Scaling(Xtest$T, normalization_scT)
+		C = Scaling(Xtrain$train_cellID, normalization_scC)
+		
+		T = Transformation(T, transformation)
+		C = Transformation(C, transformation)
 
 		#If a cell type is removed, only meaningful mixtures where that CT was present (proportion < 0) are kept:
 		if(to_remove != "none"){
@@ -349,11 +363,17 @@ cross_reference<-function(param){
 	#-------------------------------------------------------
 	### Transformation, scaling/normalization, marker selection for bulk deconvolution methods and deconvolution:
 	if(deconv_type == "bulk"){
-		T = Transformation(Xtest$T, transformation)
-		C = Transformation(Xtrain$C, transformation)
+#~ 		T = Transformation(Xtest$T, transformation)
+#~ 		C = Transformation(Xtrain$C, transformation)
 
-		T = Scaling(T, normalization)
-		C = Scaling(C, normalization)
+#~ 		T = Scaling(T, normalization)
+#~ 		C = Scaling(C, normalization)
+
+		T = Scaling(Xtest$T, normalization)
+		C = Scaling(Xtrain$C, normalization)
+		
+		T = Transformation(T, transformation)
+		C = Transformation(C, transformation)
 
 		# marker selection (on training data) 
 		marker_distrib = marker_strategies(Xtrain$markers, marker_strategy, C)
@@ -370,11 +390,17 @@ cross_reference<-function(param){
 
 	} else if (deconv_type == "sc"){
 
-		T = Transformation(Xtest$T, transformation)
-		C = Transformation(Xtrain$train_cellID, transformation)
+#~ 		T = Transformation(Xtest$T, transformation)
+#~ 		C = Transformation(Xtrain$train_cellID, transformation)
 
-		T = Scaling(T, normalization_scT)
-		C = Scaling(C, normalization_scC)
+#~ 		T = Scaling(T, normalization_scT)
+#~ 		C = Scaling(C, normalization_scC)
+
+		T = Scaling(Xtest$T, normalization_scT)
+		C = Scaling(Xtrain$train_cellID, normalization_scC)
+		
+		T = Transformation(T, transformation)
+		C = Transformation(C, transformation)
 
 		#If a cell type is removed, only meaningful mixtures where that CT was present (proportion < 0) are kept:
 		if(to_remove != "none"){
@@ -481,11 +507,17 @@ bulk_reference<-function(param){
 	#-------------------------------------------------------
 	### Transformation, scaling/normalization, marker selection for bulk deconvolution methods and deconvolution:
 	if(deconv_type == "bulk"){
-		T = Transformation(Xtest$T, transformation)
-		C = Transformation(Xtrain$C, transformation)
+#~ 		T = Transformation(Xtest$T, transformation)
+#~ 		C = Transformation(Xtrain$C, transformation)
 
-		T = Scaling(T, normalization)
-		C = Scaling(C, normalization)
+#~ 		T = Scaling(T, normalization)
+#~ 		C = Scaling(C, normalization)
+
+		T = Scaling(Xtest$T, normalization)
+		C = Scaling(Xtrain$C, normalization)
+		
+		T = Transformation(T, transformation)
+		C = Transformation(C, transformation)
 
 		# marker selection (on training data) 
 		marker_distrib = marker_strategies(Xtrain$markers, marker_strategy, C)
@@ -502,11 +534,17 @@ bulk_reference<-function(param){
 
 	} else if (deconv_type == "sc"){
 
-		T = Transformation(Xtest$T, transformation)
-		C = Transformation(Xtrain$train_cellID, transformation)
+#~ 		T = Transformation(Xtest$T, transformation)
+#~ 		C = Transformation(Xtrain$train_cellID, transformation)
 
-		T = Scaling(T, normalization_scT)
-		C = Scaling(C, normalization_scC)
+#~ 		T = Scaling(T, normalization_scT)
+#~ 		C = Scaling(C, normalization_scC)
+
+		T = Scaling(Xtest$T, normalization_scT)
+		C = Scaling(Xtrain$train_cellID, normalization_scC)
+		
+		T = Transformation(T, transformation)
+		C = Transformation(C, transformation)
 
 		#If a cell type is removed, only meaningful mixtures where that CT was present (proportion < 0) are kept:
 		if(to_remove != "none"){

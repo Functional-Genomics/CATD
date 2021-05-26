@@ -1,5 +1,6 @@
 source('./CIBERSORT.R')
 options(stringsAsFactors = FALSE)
+library(dplyr)
 
 Normalization <- function(data){
 
@@ -273,11 +274,11 @@ Scaling <- function(matrix, option, phenoDataC=NULL){
 
     if(option=="column"){
         
-        matrix = apply(matrix,2,function(x) x/sum(x)) 
+        matrix = apply(matrix,2,function(x) x*10000/sum(x)) 
 
     } else if(option=="row"){ 
         
-        matrix = t(apply(matrix,1,function(x) x/sum(x))) 
+        matrix = t(apply(matrix,1,function(x) x*10000/sum(x))) 
 
     } else if(option=="mean"){ 
         
@@ -919,7 +920,7 @@ plotTopResults<-function(x, n=9, ncols=3){
     return(g)
 }
                         
-plotAllResults<-function(x, n=9, ncols=3, title=''){
+plotAllResults<-function(x, title=''){
     p<-ggplot(x, aes(x=observed_values, y=expected_values)) + geom_point(color='blue', alpha=0.4)+
   geom_smooth(method=lm, color='red')+ggtitle(title)
     return(p)
