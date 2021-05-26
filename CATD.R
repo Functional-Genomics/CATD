@@ -109,7 +109,8 @@ prepare_train<-function(train, train_cell_names){
 	C = round(do.call(cbind.data.frame, C))
 
 	refProfiles.var = lapply(group,function(x) train[,x])
-	refProfiles.var = lapply(refProfiles.var, function(x) matrixStats::rowSds(Matrix::as.matrix(x)))
+# 	refProfiles.var = lapply(refProfiles.var, function(x) matrixStats::rowSds(Matrix::as.matrix(x)))
+    refProfiles.var = lapply(refProfiles.var, function(x) sparseMatrixStats::rowSds(x))   
 	refProfiles.var = round(do.call(cbind.data.frame, refProfiles.var))
 	rownames(refProfiles.var) <- rownames(train)
 

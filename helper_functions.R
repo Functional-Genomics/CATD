@@ -1027,9 +1027,14 @@ plotTopResults<-function(x, n=9, ncols=3){
     return(g)
 }
                         
-plotAllResults<-function(x, title=''){
+plotAllResults<-function(x, title='', color=TRUE){
+	if(color){
+		p<-ggplot(x, aes(x=observed_values, y=expected_values, color=CT)) + geom_point(alpha=0.4)+
+  geom_smooth(method=lm, color='red')+ggtitle(title)
+	}else{
     p<-ggplot(x, aes(x=observed_values, y=expected_values)) + geom_point(color='blue', alpha=0.4)+
   geom_smooth(method=lm, color='red')+ggtitle(title)
+	}
     return(p)
 }
                         
