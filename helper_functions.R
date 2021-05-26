@@ -78,6 +78,37 @@ bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","e
 sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM")
 all_methods = c(bulk_methods,sc_methods)
 
+get_result<-function(norm = 'column', trans = 'log'){
+	ds = c()
+	ms = c()
+	vs = c()
+	for(dataset in datasets){
+		for(meth in all_methods){
+			if(meth %in% bulk_methods){
+				tp = 'bulk'
+				name = sprintf('RDS/s.%s.%s.%s.%s.all.%s.10000.none.1.F.T.rds', dataset, trans, tp, norm, meth)
+			}else{
+				tp = 'sc'
+				name = sprintf('RDS/s.%s.%s.%s.%s.%s.%s.10000.none.1.F.T.rds', dataset, trans, tp, norm, norm, meth)
+			}
+			if(file.exists(name)){
+				x = readRDS(name)
+				y = evaluation_metrics(x)$Pearson
+			}else{
+				y = -1
+			}
+			ds <- c(ds, dataset)
+			ms <- c(ms, meth)
+			vs <- c(vs, y)
+			
+		}
+	}
+	return(data.frame(cbind(dataset = ds,
+      method = ms,
+      values = vs)))
+	
+}
+
 Normalization <- function(data){
 
     data <- edgeR::DGEList(data)
