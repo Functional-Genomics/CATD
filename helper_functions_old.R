@@ -1,6 +1,114 @@
 source('./CIBERSORT.R')
-source('./TIMER.R')
 options(stringsAsFactors = FALSE)
+library(dplyr)
+
+get_result<-function(norm = 'column', trans = 'log'){
+	
+	datasets = c('MacParland2018',
+	 'Segerstolpe2016',
+	 'Fan2020',
+	 'BaronMouse',
+	 'Vieira2019',
+	 'Darmanis2017',
+	 'Shekhar2016',
+	 'BaronHuman',
+	 'Wilk2020',
+	 'Lawlor2017',
+	 'Moncada2020B',
+	 'Moncada2020A',
+	 'Tirosh2016',
+	 'Tasic2016',
+	 'ZilionisMouse2019',
+	 'MaL2019set2',
+	 'Haber2018',
+	 'Zeisel2015',
+	 'Muraro2016',
+	 'MaL2019set1',
+	 'TravagliniMouseFACS',
+	 'ZilionisHuman2019',
+	 'Hochgerner1',
+	 'Aizarani2019',
+	 'VentoSS2',
+	 'TravagliniHumanFACS',
+	 'DeMicheli2020',
+	 'KildisiuteNbPMC',
+	 'KildisiuteNbGOSH',
+	 'LiH2017_tumor',
+	 'Xin2016',
+	 'Ximerakis2019',
+	 'Hochgerner2',
+	 'Elmentaite2020',
+	 'Menon2019B',
+	 'LiH2017',
+	 'LiH2017_healthy',
+	 'WangY2019',
+	 'Menon2019A',
+	 'ZilionisMouse2019fine',
+	 'Vieira2019Travaglini',
+	 'ZilionisHuman2019fine',
+	 'Reyfman2019',
+	 'TravagliniMouseDroplet',
+	 'Hrvatin2018',
+	 'Wilk2020fine',
+	 'Tirosh2016clean',
+	 'James2020',
+	 'Shekhar2016Menon',
+	 'Davidson2020',
+	 'Chua2020',
+	 'Liao2020',
+	 'TravagliniHuman10X',
+	 'sims-farber_PBMC',
+	 'Vento10X',
+	 'ZhaoJ2020',
+	 'FetalGut',
+	 'KildisiuteAdr',
+	 'Allen_human_MCA',
+	 'Tasic2018',
+	 'Schulte-Schrepping2020',
+	 'Allen_human_M1',
+	 'KimN2020',
+	 'Allen_mouse_MCA',
+	 'Popescu2019',
+	 'Adams2020',
+	 'Adams2020fine',
+	 'Stephenson2021',
+	 'Allen_mouse_M1')
+
+	bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso",
+					 "ridge","EPIC","DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture",
+					 "EpiDISH")
+	sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM")
+	all_methods = c(bulk_methods,sc_methods)
+	
+	ds = c()
+	ms = c()
+	vs = c()
+	for(dataset in datasets){
+		for(meth in all_methods){
+			if(meth %in% bulk_methods){
+				tp = 'bulk'
+				name = sprintf('RDS/s.%s.%s.%s.%s.all.%s.10000.none.1.F.T.rds', dataset, trans, tp, norm, meth)
+			}else{
+				tp = 'sc'
+				name = sprintf('RDS/s.%s.%s.%s.%s.%s.%s.10000.none.1.F.T.rds', dataset, trans, tp, norm, norm, meth)
+			}
+			if(file.exists(name)){
+				x = readRDS(name)
+				y = evaluation_metrics(x)$Pearson
+			}else{
+				y = -1
+			}
+			ds <- c(ds, dataset)
+			ms <- c(ms, meth)
+			vs <- c(vs, y)
+			
+		}
+	}
+	return(data.frame(cbind(dataset = ds,
+      method = ms,
+      values = vs)))
+	
+}
 
 Normalization <- function(data){
 
@@ -142,10 +250,10 @@ marker.fc <- function(fit2, cont.matrix, log2.threshold = 1, output_name = "mark
 	((temp[ncol(topTable_RESULTS)] - temp[ncol(topTable_RESULTS)-1]) >= log2.threshold) | (abs(temp[1] - temp[2]) >= log2.threshold)
 
 	})
- print('===1')  
+# print('===1')  
 #     saveRDS(topTable_RESULTS, 'topTable_RESULTS2.rds' )
 	topTable_RESULTS = topTable_RESULTS[markers,]
-print('===2')
+# print('===2')
 #     saveRDS(topTable_RESULTS, 'topTable_RESULTS3.rds' )
 	markers <- cbind.data.frame(rownames(topTable_RESULTS),
 	                                   t(apply(topTable_RESULTS, 1, function(x){
@@ -157,7 +265,7 @@ print('===2')
 	                                     } 
 	                                     temp
 	                                   })))
-print('===3')  
+# print('===3')  
 	colnames(markers) <- c("gene","log2FC","CT")
 	markers$log2FC = as.numeric(as.character(markers$log2FC))
 	markers <- markers %>% dplyr::arrange(CT,desc(log2FC)) 
@@ -274,11 +382,11 @@ Scaling <- function(matrix, option, phenoDataC=NULL){
 
     if(option=="column"){
         
-        matrix = apply(matrix,2,function(x) x/sum(x)) 
+        matrix = apply(matrix,2,function(x) x*10000/sum(x)) 
 
     } else if(option=="row"){ 
         
-        matrix = t(apply(matrix,1,function(x) x/sum(x))) 
+        matrix = t(apply(matrix,1,function(x) x*10000/sum(x))) 
 
     } else if(option=="mean"){ 
         
@@ -327,16 +435,16 @@ Scaling <- function(matrix, option, phenoDataC=NULL){
             Celltype = colnames(matrix)
 
         }
-print('####1')
+# print('####1')
         matrix <- edgeR::DGEList(counts=matrix, group=Celltype)
         CtrlGenes <- grep("ERCC-",rownames(data))
-print('####2') 
+# print('####2') 
         if(length(CtrlGenes)>1){
-print('#####1')   
+# print('#####1')   
             spikes <- data[CtrlGenes,]
-print('#####2')  
+# print('#####2')  
             spikes <- edgeR::calcNormFactors(spikes, method = "TMM") 
-print('#####3')
+# print('#####3')
 #             saveRDS(matrix,'matrix.rds')
 #             saveRDS(spikes,'spikes.rds')
             matrix$samples$norm.factors <- spikes$samples$norm.factors
@@ -468,15 +576,15 @@ print('#####3')
 #################################################
 ##########    DECONVOLUTION METHODS    ##########
 # T is pseudo-bulk
-Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRING = NULL, marker_distrib, dataset,refProfiles.var,pData,data){ 
+Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRING = NULL, marker_distrib, refProfiles.var){ 
 
-    bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso","ridge","EPIC","DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "EpiDISH", "TIMER","CAMmarker" )
-    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM","CDSeq")
+    bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso","ridge","EPIC","DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "spillOver", "svmdecon", "EpiDISH")
+    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc")
 
-print('----a')
+# print('----a')
     ########## Using marker information for bulk_methods
     if(method %in% bulk_methods){
-        print('----a')
+
         C = C[rownames(C) %in% marker_distrib$gene,]
         T = T[rownames(T) %in% marker_distrib$gene,]
         refProfiles.var = refProfiles.var[rownames(refProfiles.var) %in% marker_distrib$gene,]
@@ -484,16 +592,14 @@ print('----a')
     } else { ### For scRNA-seq methods 
 
         #BisqueRNA requires "SubjectName" in phenoDataC
-  #      if(length(grep("[N-n]ame",colnames(phenoDataC))) > 0){
-   #         print(1)
-    #    	sample_column = grep("[N-n]ame",colnames(phenoDataC))
-     #   } else {
-      #      print(2)
+        if(length(grep("[N-n]ame",colnames(phenoDataC))) > 0){
+            print(1)
+        	sample_column = grep("[N-n]ame",colnames(phenoDataC))
+        } else {
+            print(2)
 #         	sample_column = grep("[S-s]ample|[S-s]ubject",colnames(phenoDataC))
-       #     sample_column = grep("sampleID",colnames(phenoDataC))
-       # }
-        print(1)
-        sample_column = grep("sampleID",colnames(phenoDataC)) 
+            sample_column = grep("sampleID",colnames(phenoDataC))
+        }
 # print('----b')
 # saveRDS(phenoDataC,'phenoDataC1.rds')
         colnames(phenoDataC)[sample_column] = "SubjectName"
@@ -503,16 +609,16 @@ print('----a')
 # saveRDS(phenoDataC,'phenoDataC.rds')
 # saveRDS(C,'C.rds')   
         C.eset <- Biobase::ExpressionSet(assayData = as.matrix(C),phenoData = Biobase::AnnotatedDataFrame(phenoDataC))
- print('----c1')
+# print('----c1')
         T.eset <- Biobase::ExpressionSet(assayData = as.matrix(T))
- print('----d')
+# print('----d')
     }
 
     ##########    MATRIX DIMENSION APPROPRIATENESS    ##########
     keep = intersect(rownames(C),rownames(T)) 
     C = C[keep,]
     T = T[keep,]
- print('----e')
+# print('----e')
     ###################################
     if(method=="CIBERSORT"){ #without QN. By default, CIBERSORT performed QN (only) on the mixture.
 
@@ -573,8 +679,6 @@ print('----a')
         require(ADAPTS)
         RESULTS = ADAPTS::estCellPercent(refExpr = C, geneExpr = T, method="proportionsInAdmixture")
 #         print(RESULTS)
-        RESULTS[is.na(RESULTS)] <- 0  ####Anna## convert NAs to zeros so you can apply sum to one constraint
-
         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
         RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
 
@@ -686,14 +790,12 @@ print('----a')
 
     }else if (method=="deconf"){
 
-        source("deconf.R")
+        require(CellMix)
+        md = marker_distrib #Full version, irrespective of C
+        ML = CellMix::MarkerList()
+        ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
 
-        #require(CellMix)
-        #md = marker_distrib #Full version, irrespective of C
-        #ML = CellMix::MarkerList()
-        #ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
-
-        #RESULTS <- CellMix::ged(as.matrix(T), ML, method = "deconf", maxIter = 500)@fit@H #equivalent to coef(CellMix::ged(T,...)
+        RESULTS <- CellMix::ged(as.matrix(T), ML, method = "deconf", maxIter = 500)@fit@H #equivalent to coef(CellMix::ged(T,...)
 
     } else if(method=="dtangle"){#Only works if T & C are log-transformed
 
@@ -707,53 +809,6 @@ print('----a')
         MD <- lapply(MD,function(x) sapply(x, function(y) which(y==rownames(C))))
 
         RESULTS = t(dtangle::dtangle(Y=mixture_samples, reference=reference_samples, markers = MD)$estimates)
-    } else if (method=="TIMER"){
-        
-        ad = readRDS(dataset)
-        data = ad@assays$RNA@counts 
-        pData = ad@meta.data
-        #data = ad@assayData$exprs
-        #pData = ad@phenoData@data
-        ref_anno <- pData$cellID
-        names(ref_anno)<- pData$cellType
-        print(head(ref_anno))
-        print(rownames(marker_distrib))
-        RESULTS=TIMER_deconv(T, data, ref_anno, rownames(marker_distrib))
-        print(head(RESULTS))
-        
-    } else if (method=="CAMmarker"){ 
-
-        library(debCAM)
-        md = marker_distrib #Full version, irrespective of C
-
-        ML = CellMix::MarkerList()
-        ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
-        RESULTS = t(AfromMarkers(T, ML))
-        colnames(RESULTS) <- colnames(T)
-        rownames(RESULTS) <- names(ML)
-        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-                        
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint 
-         
-    } else if (method=="CDSeq"){
-         
-
-        dseq.result<-CDSeq::CDSeq(bulk_data =  T, cell_type_number = length(colnames(C)), mcmc_iterations = 1000, reference_gep = C, cpu_number=10,block_number=6,gene_subset_size=1000)
-        print(dseq.result)
-        saveRDS(dseq.result, "dseq.result.rds")
-        cdseq.result.celltypeassign <- cellTypeAssignSCRNA(cdseq_gep = cdseq.result$estGEP,
-                                                   cdseq_prop = cdseq.result$estProp,
-                                                   sc_gep = C,         
-                                                   sc_annotation = colnames(C),
-                                                   sc_pt_size = 3,
-                                                   cdseq_pt_size = 6,
-                                                   seurat_nfeatures = 100,
-                                                   seurat_npcs = 50,
-                                                   seurat_dims=1:5,
-                                                   plot_umap = 1,
-                                                   plot_tsne = 0)
-         print(cdseq.result.celltypeassign)
-                                                                                  
 
     ###################################
     ###################################
@@ -764,7 +819,8 @@ print('----a')
 #         RESULTS = t(MuSiC::music_prop(bulk.eset = T.eset, sc.eset = C.eset, clusters = 'cellType',
 #                                             markers = NULL, normalize = FALSE, samples = 'SubjectName', 
 #                                             verbose = F)$Est.prop.weighted)
-
+        saveRDS(T.est, 'T.est.rds')
+        saveRDS(C.est, 'C.est.rds')
         RESULTS = t(MuSiC::music_prop(bulk.eset = T.eset, sc.eset = C.eset, clusters = 'cellType',
                                             markers = NULL, normalize = FALSE, samples = 'SubjectName', 
                                             verbose = F)$Est.prop.weighted)
@@ -784,13 +840,8 @@ print('----a')
 
     } else if (method == "DWLS"){
 #         require(DWLS)
-        source('./DWLS.R')
-        basename(dataset)
-        a<-sub('\\.rds$', '',basename(dataset) ) 
-                    
-        path=paste(getwd(),"/DWLS_Sig_",a,sep="")
-                
-
+        source('./DWLS_functions.R')
+        path=paste(getwd(),"/results_",STRING,sep="")
         if(! dir.exists(path)){ #to avoid repeating marker_selection step when removing cell types; Sig.RData automatically created
 
             print(1)
@@ -977,9 +1028,14 @@ plotTopResults<-function(x, n=9, ncols=3){
     return(g)
 }
                         
-plotAllResults<-function(x, n=9, ncols=3, title=''){
+plotAllResults<-function(x, title='', color=TRUE){
+	if(color){
+		p<-ggplot(x, aes(x=observed_values, y=expected_values, color=CT)) + geom_point(alpha=0.4)+
+  geom_smooth(method=lm, color='red')+ggtitle(title)
+	}else{
     p<-ggplot(x, aes(x=observed_values, y=expected_values)) + geom_point(color='blue', alpha=0.4)+
   geom_smooth(method=lm, color='red')+ggtitle(title)
+	}
     return(p)
 }
                         

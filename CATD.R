@@ -5,16 +5,23 @@ set.seed(24)
 require(limma); require(dplyr); require(pheatmap); require(Matrix)
 args <- commandArgs(trailingOnly=TRUE)
 
-read_data<-function(dataset, format='seurat'){
-	ad = readRDS(dataset)
-	if(format=='seurat'){
-		data = ad@assays$RNA@counts
-		pData = ad@meta.data
-	}else{
-		data = ad@assayData$exprs
-		pData = ad@phenoData@data
-	}
-	rownames(pData)<-NULL
+read_data<-function(dataset){
+    
+    ad = readRDS(dataset)
+    if (class(ad)== "Seurat") {
+#        print("input of class SeuratObject")
+        data = ad@assays$RNA@counts 
+        pData = ad@meta.data
+    } else if (class(ad) =="ExpressionSet"){
+        
+#        print("input of class ExpressionSet")
+        data = ad@assayData$exprs
+        pData = ad@phenoData@data
+               
+    } else {
+		print("the format of the input data is neither Seurat nor ExpressionSet")
+    }
+    rownames(pData)<-NULL
 
 	original_cell_names = colnames(data)
 	colnames(data) <- as.character(pData$cellType[match(colnames(data),pData$cellID)])

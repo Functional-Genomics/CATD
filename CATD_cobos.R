@@ -5,46 +5,29 @@ set.seed(24)
 require(limma); require(dplyr); require(pheatmap); require(Matrix)
 args <- commandArgs(trailingOnly=TRUE)
 
-#read_data<-function(dataset){
-#	ad = readRDS(dataset)
-#	data = ad@assays$RNA@counts 
-#	pData = ad@meta.data
-#	rownames(pData)<-NULL
-
-#	original_cell_names = colnames(data)
-#	colnames(data) <- as.character(pData$cellType[match(colnames(data),pData$cellID)])
-#	cell_counts = table(colnames(data))
-#	return(list('data'=data, 'pData'=pData, 'original_cell_names'=original_cell_names, #'cell_counts'=cell_counts))
-#}
-
 read_data<-function(dataset){
     
     ad = readRDS(dataset)
     if (class(ad)== "Seurat") {
-        print("input of class SeuratObject")
+#        print("input of class SeuratObject")
         data = ad@assays$RNA@counts 
         pData = ad@meta.data
-     } else if (class(ad) =="ExpressionSet"){
+    } else if (class(ad) =="ExpressionSet"){
         
-        print("input of class ExpressionSet")
+#        print("input of class ExpressionSet")
         data = ad@assayData$exprs
         pData = ad@phenoData@data
                
-      } else {
-        print("the format of the input data is neither Seurat nor ExpressionSet")
-        
-      }
-     
-        
-	rownames(pData)<-NULL
+    } else {
+		print("the format of the input data is neither Seurat nor ExpressionSet")
+    }
+    rownames(pData)<-NULL
 
 	original_cell_names = colnames(data)
 	colnames(data) <- as.character(pData$cellType[match(colnames(data),pData$cellID)])
 	cell_counts = table(colnames(data))
 	return(list('data'=data, 'pData'=pData, 'original_cell_names'=original_cell_names, 'cell_counts'=cell_counts))
 }
-
-
 
 read_bulk<-function(dataset){
 	data = readRDS(dataset)
@@ -133,7 +116,8 @@ prepare_train<-function(train, train_cell_names){
 	C = round(do.call(cbind.data.frame, C))
 
 	refProfiles.var = lapply(group,function(x) train[,x])
-	refProfiles.var = lapply(refProfiles.var, function(x) matrixStats::rowSds(Matrix::as.matrix(x)))
+# 	refProfiles.var = lapply(refProfiles.var, function(x) matrixStats::rowSds(Matrix::as.matrix(x)))
+    refProfiles.var = lapply(refProfiles.var, function(x) sparseMatrixStats::rowSds(x))   
 	refProfiles.var = round(do.call(cbind.data.frame, refProfiles.var))
 	rownames(refProfiles.var) <- rownames(train)
 
@@ -233,6 +217,14 @@ self_reference<-function(param){
 
 		T = Scaling(T, normalization)
 		C = Scaling(C, normalization)
+		
+#~ 		T = Scaling(Xtest$T, normalization)
+#~ 		C = Scaling(Xtrain$C, normalization)
+		
+#~ 		T = Transformation(T, transformation)
+#~ 		C = Transformation(C, transformation)
+
+		
 
 		# marker selection (on training data) 
 		marker_distrib = marker_strategies(Xtrain$markers, marker_strategy, C)
@@ -255,6 +247,12 @@ self_reference<-function(param){
 		T = Scaling(T, normalization_scT)
 		C = Scaling(C, normalization_scC)
 
+#~ 		T = Scaling(Xtest$T, normalization_scT)
+#~ 		C = Scaling(Xtrain$train_cellID, normalization_scC)
+		
+#~ 		T = Transformation(T, transformation)
+#~ 		C = Transformation(C, transformation)
+
 		#If a cell type is removed, only meaningful mixtures where that CT was present (proportion < 0) are kept:
 		if(to_remove != "none"){
 
@@ -271,7 +269,7 @@ self_reference<-function(param){
 	# C is the reference exprs (average for each cell type)
 	# P is the preassigned proportion for the pseudo-bulk
 	# pDataC is the meta-data for the reference
-	RESULTS = Deconvolution(T = T, C = C, method = method, P = P, elem = to_remove, refProfiles.var = Xtrain$ref, STRING = as.character(sample(1:10000, 1)),dataset, marker_distrib = marker_distrib, phenoDataC = pDataC) 
+	RESULTS = Deconvolution(T = T, C = C, method = method, P = P, elem = to_remove, refProfiles.var = Xtrain$ref, STRING = as.character(sample(1:10000, 1)), marker_distrib = marker_distrib, phenoDataC = pDataC) 
     
 #     saveRDS(RESULTS, 'RESULTS.rds')
     
@@ -379,6 +377,12 @@ cross_reference<-function(param){
 		T = Scaling(T, normalization)
 		C = Scaling(C, normalization)
 
+#~ 		T = Scaling(Xtest$T, normalization)
+#~ 		C = Scaling(Xtrain$C, normalization)
+		
+#~ 		T = Transformation(T, transformation)
+#~ 		C = Transformation(C, transformation)
+
 		# marker selection (on training data) 
 		marker_distrib = marker_strategies(Xtrain$markers, marker_strategy, C)
 
@@ -399,6 +403,12 @@ cross_reference<-function(param){
 
 		T = Scaling(T, normalization_scT)
 		C = Scaling(C, normalization_scC)
+
+#~ 		T = Scaling(Xtest$T, normalization_scT)
+#~ 		C = Scaling(Xtrain$train_cellID, normalization_scC)
+		
+#~ 		T = Transformation(T, transformation)
+#~ 		C = Transformation(C, transformation)
 
 		#If a cell type is removed, only meaningful mixtures where that CT was present (proportion < 0) are kept:
 		if(to_remove != "none"){
@@ -511,6 +521,12 @@ bulk_reference<-function(param){
 		T = Scaling(T, normalization)
 		C = Scaling(C, normalization)
 
+#~ 		T = Scaling(Xtest$T, normalization)
+#~ 		C = Scaling(Xtrain$C, normalization)
+		
+#~ 		T = Transformation(T, transformation)
+#~ 		C = Transformation(C, transformation)
+
 		# marker selection (on training data) 
 		marker_distrib = marker_strategies(Xtrain$markers, marker_strategy, C)
 
@@ -531,6 +547,12 @@ bulk_reference<-function(param){
 
 		T = Scaling(T, normalization_scT)
 		C = Scaling(C, normalization_scC)
+
+#~ 		T = Scaling(Xtest$T, normalization_scT)
+#~ 		C = Scaling(Xtrain$train_cellID, normalization_scC)
+		
+#~ 		T = Transformation(T, transformation)
+#~ 		C = Transformation(C, transformation)
 
 		#If a cell type is removed, only meaningful mixtures where that CT was present (proportion < 0) are kept:
 		if(to_remove != "none"){
@@ -596,5 +618,4 @@ if(args[1]=='s'){
 	RESULTS = bulk_2references(args[2:length(args)])
 }
 name = getname(args)
-saveRDS(RESULTS, paste0("../RESULTS_baron/",name,"rds"))
-#print(RESULTS)
+saveRDS(RESULTS, paste0("RDS/",name,"rds"))
