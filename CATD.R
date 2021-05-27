@@ -334,7 +334,11 @@ self_reference_pro<-function(param){
     }else{
         propsample = FALSE
     }
-    NormTrans = param[12]
+    if(param[12]=='T'){
+		NormTrans = TRUE
+	}else{
+        NormTrans = FALSE
+    }
     
 	#-------------------------------------------------------
 	### Read single cell data and metadata
