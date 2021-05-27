@@ -279,6 +279,163 @@ self_reference<-function(param){
 	return(RESULTS)
 }
 
+self_reference_pro<-function(param){
+	
+	if(length(param)!=12){
+
+		print("Please check that all required parameters are indicated or are correct")
+		print("Example usage for bulk deconvolution methods: 'Rscript Master_deconvolution.R baron none bulk TMM all nnls 100 none 1'")
+		print("Example usage for single-cell deconvolution methods: 'Rscript Master_deconvolution.R baron none sc TMM TMM MuSiC 100 none 1'")
+		stop()
+	} 
+
+	flag = FALSE
+
+	### arguments
+	# 1: dataset name
+	# 2: Transformation: none (defalt), log, sqrt, vst
+	# 3: deconvolution type: bulk, sc
+	# 4: Normalization for C, normalization
+	# 5: Normalization for T, marker strategy
+	# 6: Deconvolution method
+	# 7: number of cells used
+	# 8: remove cell type or not (none: default)
+	# 9: number of cores used.
+	# 10: sampleCT.
+	# 11: propsample.
+	# 12: Normalize first (T) or Transform first(F). 
+
+	dataset = param[1]
+	transformation = param[2]
+	deconv_type = param[3]
+
+	if(deconv_type == "bulk"){
+		normalization = param[4]
+		marker_strategy = param[5]
+	} else if (deconv_type == "sc") {
+		normalization_scC = param[4]
+		normalization_scT = param[5]
+	} else {
+		print("Please enter a valid deconvolution framework")
+		stop()
+	}
+
+	method = param[6]
+	number_cells = round(as.numeric(param[7]), digits = -2) #has to be multiple of 100
+	to_remove = param[8]
+	num_cores = min(as.numeric(param[9]),parallel::detectCores()-1)
+	if(param[10]=='T'){
+        sampleCT = TRUE
+    }else{
+        sampleCT = FALSE
+    }
+    if(param[11]=='T'){
+        propsample = TRUE
+    }else{
+        propsample = FALSE
+    }
+    NormTrans = param[12]
+    
+	#-------------------------------------------------------
+	### Read single cell data and metadata
+	X = read_data(dataset)
+
+	#-------------------------------------------------------
+	### QC
+	if(FALSE){
+		X<-QC(X)
+	}
+
+	#-------------------------------------------------------
+	### Data split into training/test  
+	training <- as.numeric(unlist(sapply(unique(colnames(X$data)), function(x) {
+				sample(which(colnames(X$data) %in% x), X$cell_counts[x]/2) })))
+	testing <- which(!1:ncol(X$data) %in% training)
+	
+	#-------------------------------------------------------
+	### Prepare the reference data (on train data)
+	Xtrain = prepare_train(X$data[,training], X$original_cell_names[training])
+	pDataC = X$pData[training,]
+
+	#-------------------------------------------------------
+	### Generation of 1000 pseudo-bulk mixtures (T) (on test data)
+	test <- X$data[,testing]
+	colnames(test) <- X$original_cell_names[testing]
+
+	Xtest <- Generator(sce = test, phenoData = X$pData[testing,], sampleCT = sampleCT, propsample = propsample, Num.mixtures = 1000, pool.size = number_cells)
+	P <- Xtest$P
+
+	#-------------------------------------------------------
+	### Transformation, scaling/normalization, marker selection for bulk deconvolution methods and deconvolution:
+	if(deconv_type == "bulk"){
+		if(NormTrans){
+			T = Scaling(Xtest$T, normalization)
+			C = Scaling(Xtrain$C, normalization)
+			
+			T = Transformation(T, transformation)
+			C = Transformation(C, transformation)
+		}else{
+			T = Transformation(Xtest$T, transformation)
+			C = Transformation(Xtrain$C, transformation)
+
+			T = Scaling(T, normalization)
+			C = Scaling(C, normalization)
+		}
+
+		# marker selection (on training data) 
+		marker_distrib = marker_strategies(Xtrain$markers, marker_strategy, C)
+
+		#If a cell type is removed, only meaningful mixtures where that CT was present (proportion < 0) are kept:
+		if(to_remove != "none"){
+
+			T <- T[,P[to_remove,] != 0]
+			C <- C[, colnames(C) %in% rownames(P) & (!colnames(C) %in% to_remove)]
+			P <- P[!rownames(P) %in% to_remove, colnames(T)]
+			Xtrain$ref = Xtrain$ref[,colnames(Xtrain$ref) %in% rownames(P) & (!colnames(Xtrain$ref) %in% to_remove)]
+			marker_distrib <- marker_distrib[marker_distrib$CT %in% rownames(P) & (marker_distrib$CT != to_remove),]
+		}
+
+	} else if (deconv_type == "sc"){
+		if(NormTrans){
+			T = Scaling(Xtest$T, normalization_scT)
+			C = Scaling(Xtrain$train_cellID, normalization_scC)
+			
+			T = Transformation(T, transformation)
+			C = Transformation(C, transformation)
+		}else{
+			T = Transformation(Xtest$T, transformation)
+			C = Transformation(Xtrain$train_cellID, transformation)
+
+			T = Scaling(T, normalization_scT)
+			C = Scaling(C, normalization_scC)
+		}
+
+		#If a cell type is removed, only meaningful mixtures where that CT was present (proportion < 0) are kept:
+		if(to_remove != "none"){
+
+			T <- T[,P[to_remove,] != 0]
+			C <- C[,pDataC$cellType != to_remove]
+			P <- P[!rownames(P) %in% to_remove, colnames(T)]
+			pDataC <- pDataC[pDataC$cellType != to_remove,]
+
+		}
+		marker_distrib = NULL
+	}
+	## 
+	# T is the pseudo-bulk exprs
+	# C is the reference exprs (average for each cell type)
+	# P is the preassigned proportion for the pseudo-bulk
+	# pDataC is the meta-data for the reference
+	RESULTS = Deconvolution(T = T, C = C, method = method, P = P, elem = to_remove, refProfiles.var = Xtrain$ref, STRING = as.character(sample(1:10000, 1)), marker_distrib = marker_distrib, phenoDataC = pDataC) 
+    
+#     saveRDS(RESULTS, 'RESULTS.rds')
+    
+# 	RESULTS = RESULTS %>% dplyr::summarise(RMSE = sqrt(mean((observed_values-expected_values)^2)) %>% round(.,4), 
+# 										   Pearson=cor(observed_values,expected_values) %>% round(.,4))
+# 	print(RESULTS)
+	return(RESULTS)
+}
+
 cross_reference<-function(param){
 	
 	if(length(param)!=12){
@@ -611,7 +768,8 @@ bulk_2references<-function(param){
 }
 
 if(args[1]=='s'){
-	RESULTS = self_reference(args[2:length(args)])
+#~ 	RESULTS = self_reference(args[2:length(args)])
+	RESULTS = self_reference_pro(args[2:length(args)])
 }else if(args[1]=='c'){
 	RESULTS = cross_reference(args[2:length(args)])
 }else if(args[1]=='b'){
