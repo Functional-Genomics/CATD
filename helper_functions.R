@@ -3,7 +3,12 @@ source('./TIMER.R')
 options(stringsAsFactors = FALSE)
 require(dplyr)
 
-get_result<-function(norm = 'column', trans = 'log'){
+get_result<-function(norm = 'column', 
+					 trans = 'log', 
+					 number_cells = 10000,
+					 sampleCT='F', 
+					 propsample='T', 
+					 NormTrans = 'T'){
 	
 	datasets = c('MacParland2018',
 	 'Segerstolpe2016',
@@ -15,22 +20,13 @@ get_result<-function(norm = 'column', trans = 'log'){
 	 'BaronHuman',
 	 'Wilk2020',
 	 'Lawlor2017',
-	 'Moncada2020B',
-	 'Moncada2020A',
-	 'Tirosh2016',
 	 'Tasic2016',
 	 'ZilionisMouse2019',
 	 'MaL2019set2',
-	 'Haber2018',
 	 'Zeisel2015',
-	 'Muraro2016',
-	 'MaL2019set1',
 	 'TravagliniMouseFACS',
-	 'ZilionisHuman2019',
 	 'Hochgerner1',
 	 'Aizarani2019',
-	 'VentoSS2',
-	 'TravagliniHumanFACS',
 	 'DeMicheli2020',
 	 'KildisiuteNbPMC',
 	 'KildisiuteNbGOSH',
@@ -40,40 +36,22 @@ get_result<-function(norm = 'column', trans = 'log'){
 	 'Hochgerner2',
 	 'Elmentaite2020',
 	 'Menon2019B',
-	 'LiH2017',
-	 'LiH2017_healthy',
 	 'WangY2019',
 	 'Menon2019A',
 	 'ZilionisMouse2019fine',
 	 'Vieira2019Travaglini',
-	 'ZilionisHuman2019fine',
-	 'Reyfman2019',
 	 'TravagliniMouseDroplet',
 	 'Hrvatin2018',
 	 'Wilk2020fine',
 	 'Tirosh2016clean',
 	 'James2020',
 	 'Shekhar2016Menon',
-	 'Davidson2020',
-	 'Chua2020',
 	 'Liao2020',
-	 'TravagliniHuman10X',
 	 'sims-farber_PBMC',
 	 'Vento10X',
-	 'ZhaoJ2020',
-	 'FetalGut',
 	 'KildisiuteAdr',
-	 'Allen_human_MCA',
 	 'Tasic2018',
-	 'Schulte-Schrepping2020',
-	 'Allen_human_M1',
-	 'KimN2020',
-	 'Allen_mouse_MCA',
-	 'Popescu2019',
-	 'Adams2020',
-	 'Adams2020fine',
-	 'Stephenson2021',
-	 'Allen_mouse_M1')
+	 'KimN2020')
 
 	bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso",
 					 "ridge","EPIC","DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture",
@@ -88,10 +66,10 @@ get_result<-function(norm = 'column', trans = 'log'){
 		for(meth in all_methods){
 			if(meth %in% bulk_methods){
 				tp = 'bulk'
-				name = sprintf('RDS/s.%s.%s.%s.%s.all.%s.10000.none.1.F.T.rds', dataset, trans, tp, norm, meth)
+				name = sprintf('RDS/s.%s.%s.%s.%s.all.%s.%d.none.1.%s.%s.%s.rds', dataset, trans, tp, norm, meth, number_cells, sampleCT, propsample, NormTrans)
 			}else{
 				tp = 'sc'
-				name = sprintf('RDS/s.%s.%s.%s.%s.%s.%s.10000.none.1.F.T.rds', dataset, trans, tp, norm, norm, meth)
+				name = sprintf('RDS/s.%s.%s.%s.%s.%s.%s.%d.none.1.%s.%s.%s.rds', dataset, trans, tp, norm, norm, meth, number_cells, sampleCT, propsample, NormTrans)
 			}
 			if(file.exists(name)){
 				x = readRDS(name)
