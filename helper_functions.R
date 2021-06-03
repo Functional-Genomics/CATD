@@ -1,4 +1,3 @@
-source('./CIBERSORT.R')
 options(stringsAsFactors = FALSE)
 require(dplyr)
 
@@ -52,10 +51,9 @@ get_result<-function(norm = 'column',
 	 'Tasic2018',
 	 'KimN2020')
 
-	bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso",
-					 "ridge","EPIC","DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture",
-					 "EpiDISH")
-	sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM")
+	bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso","ridge","EPIC",
+					 "DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "EpiDISH","CAMmarker" )
+    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM","CDSeq","TIMER")
 	all_methods = c(bulk_methods,sc_methods)
 	
 	ds = c()
@@ -111,7 +109,8 @@ Normalization <- function(data){
 
 # Added parameters: sampleCT = FALSE, propsample = TRUE, pct.var=30
 
-Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.var=30, Num.mixtures = 1000, pool.size = 100, min.percentage = 1, max.percentage = 99, seed = 24){ 
+Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.var=30, Num.mixtures = 1000, 
+					  pool.size = 100, min.percentage = 1, max.percentage = 99, seed = 24){ 
 
   CT = unique(phenoData$cellType)
   ?stopifnot(length(CT) >= 2)
@@ -148,15 +147,12 @@ Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.v
       }
 
       P = round(P/sum(P), digits = log10(pool.size))  #sum to 1
-#       P = round(P/sum(P), digits = 4)  #sum to 1
-
       P = data.frame(CT = selected.CT, expected = P, stringsAsFactors = FALSE)
 
       missing.CT = CT[!CT %in% selected.CT]
       missing.CT = data.frame(CT = missing.CT, expected = rep(0, length(missing.CT)), stringsAsFactors = FALSE)
       
       P = rbind.data.frame(P, missing.CT)
-#       saveRDS(P, "P4.rds")
       potential.mix = merge(P, cell.distribution)
       potential.mix$size = potential.mix$expected * pool.size
       
@@ -217,10 +213,8 @@ marker.fc <- function(fit2, cont.matrix, log2.threshold = 1, output_name = "mark
                                        p.value = 0.05, lfc = 0.1)
         log2.threshold = 0.1
     }
-#     saveRDS(topTable_RESULTS, 'topTable_RESULTS.rds' )
 	AveExpr_pval <- topTable_RESULTS[,(ncol(topTable_RESULTS)-3):ncol(topTable_RESULTS)]
 	topTable_RESULTS <- topTable_RESULTS[,1:(ncol(topTable_RESULTS)-4)]
-#     saveRDS(topTable_RESULTS, 'topTable_RESULTS1.rds' )
 	if(length(grep("ERCC-",topTable_RESULTS$gene)) > 0){ topTable_RESULTS <- topTable_RESULTS[-grep("ERCC-",topTable_RESULTS$gene),] }
 
 	markers <- apply(topTable_RESULTS,1,function(x){
@@ -228,11 +222,7 @@ marker.fc <- function(fit2, cont.matrix, log2.threshold = 1, output_name = "mark
 	((temp[ncol(topTable_RESULTS)] - temp[ncol(topTable_RESULTS)-1]) >= log2.threshold) | (abs(temp[1] - temp[2]) >= log2.threshold)
 
 	})
- print('===1')  
-#     saveRDS(topTable_RESULTS, 'topTable_RESULTS2.rds' )
 	topTable_RESULTS = topTable_RESULTS[markers,]
-print('===2')
-#     saveRDS(topTable_RESULTS, 'topTable_RESULTS3.rds' )
 	markers <- cbind.data.frame(rownames(topTable_RESULTS),
 	                                   t(apply(topTable_RESULTS, 1, function(x){
 	                                     temp = max(x)
@@ -243,11 +233,9 @@ print('===2')
 	                                     } 
 	                                     temp
 	                                   })))
-print('===3')  
 	colnames(markers) <- c("gene","log2FC","CT")
 	markers$log2FC = as.numeric(as.character(markers$log2FC))
 	markers <- markers %>% dplyr::arrange(CT,desc(log2FC)) 
-# print('===4')  
 	markers$AveExpr <- AveExpr_pval$AveExpr[match(markers$gene,rownames(AveExpr_pval))]
 	markers$gene <- as.character(markers$gene)
 	markers$CT <- as.character(markers$CT)
@@ -401,9 +389,6 @@ Scaling <- function(matrix, option, phenoDataC=NULL){
 
     } else if (option=="TMM"){# CPM counts coming from TMM-normalized library sizes; https://support.bioconductor.org/p/114798/
 
-#         saveRDS(phenoDataC,'phenoDataC.rds')
-#         saveRDS(matrix,'matrix.rds')
-        
         if(!is.null(phenoDataC)){#use CT info for scRNA-seq
 
             Celltype = as.character(phenoDataC$cellType[phenoDataC$cellID %in% colnames(matrix)])
@@ -413,18 +398,11 @@ Scaling <- function(matrix, option, phenoDataC=NULL){
             Celltype = colnames(matrix)
 
         }
-print('####1')
         matrix <- edgeR::DGEList(counts=matrix, group=Celltype)
         CtrlGenes <- grep("ERCC-",rownames(data))
-print('####2') 
         if(length(CtrlGenes)>1){
-print('#####1')   
             spikes <- data[CtrlGenes,]
-print('#####2')  
             spikes <- edgeR::calcNormFactors(spikes, method = "TMM") 
-print('#####3')
-#             saveRDS(matrix,'matrix.rds')
-#             saveRDS(spikes,'spikes.rds')
             matrix$samples$norm.factors <- spikes$samples$norm.factors
         
         } else {
@@ -432,7 +410,6 @@ print('#####3')
             matrix <- edgeR::calcNormFactors(matrix, method = "TMM")  
         
         }
-# print('####3')
         matrix <- edgeR::cpm(matrix)
 
     } else if (option=="UQ"){
@@ -556,52 +533,42 @@ print('#####3')
 # T is pseudo-bulk
 Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRING = NULL, marker_distrib, dataset,refProfiles.var,pData,data){ 
 
-    bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso","ridge","EPIC","DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "EpiDISH", "TIMER","CAMmarker" )
-    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM","CDSeq")
+    bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso","ridge","EPIC",
+					 "DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "EpiDISH","CAMmarker" )
+    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM","CDSeq","TIMER")
 
-print('----a')
     ########## Using marker information for bulk_methods
     if(method %in% bulk_methods){
-        print('----a')
         C = C[rownames(C) %in% marker_distrib$gene,]
         T = T[rownames(T) %in% marker_distrib$gene,]
         refProfiles.var = refProfiles.var[rownames(refProfiles.var) %in% marker_distrib$gene,]
 
     } else { ### For scRNA-seq methods 
 
-        #BisqueRNA requires "SubjectName" in phenoDataC
-  #      if(length(grep("[N-n]ame",colnames(phenoDataC))) > 0){
-   #         print(1)
-    #    	sample_column = grep("[N-n]ame",colnames(phenoDataC))
-     #   } else {
-      #      print(2)
-#         	sample_column = grep("[S-s]ample|[S-s]ubject",colnames(phenoDataC))
-       #     sample_column = grep("sampleID",colnames(phenoDataC))
-       # }
-        print(1)
+       #BisqueRNA requires "SubjectName" in phenoDataC
+#~        if(length(grep("[N-n]ame",colnames(phenoDataC))) > 0){
+#~         	sample_column = grep("[N-n]ame",colnames(phenoDataC))
+#~         } else {
+#~          	sample_column = grep("[S-s]ample|[S-s]ubject",colnames(phenoDataC))
+#~             sample_column = grep("sampleID",colnames(phenoDataC))
+#~         }
+
         sample_column = grep("sampleID",colnames(phenoDataC)) 
-# print('----b')
-# saveRDS(phenoDataC,'phenoDataC1.rds')
         colnames(phenoDataC)[sample_column] = "SubjectName"
         rownames(phenoDataC) = phenoDataC$cellID
-# print('----c')
-        require(xbioc)
-# saveRDS(phenoDataC,'phenoDataC.rds')
-# saveRDS(C,'C.rds')   
+        require(xbioc) 
         C.eset <- Biobase::ExpressionSet(assayData = as.matrix(C),phenoData = Biobase::AnnotatedDataFrame(phenoDataC))
- print('----c1')
         T.eset <- Biobase::ExpressionSet(assayData = as.matrix(T))
- print('----d')
     }
 
     ##########    MATRIX DIMENSION APPROPRIATENESS    ##########
     keep = intersect(rownames(C),rownames(T)) 
     C = C[keep,]
     T = T[keep,]
- print('----e')
+    
     ###################################
     if(method=="CIBERSORT"){ #without QN. By default, CIBERSORT performed QN (only) on the mixture.
-
+		source('./CIBERSORT.R')
         write.table(C, file = xf <- 'reference.tsv', sep = "\t", row.names = TRUE, col.names = NA)
         write.table(T, file = yf <- 'mixture.tsv', sep = "\t", row.names = TRUE, col.names = NA)
         message("* Running CIBERSORT ... ", appendLF = FALSE)
@@ -658,7 +625,6 @@ print('----a')
 
         require(ADAPTS)
         RESULTS = ADAPTS::estCellPercent(refExpr = C, geneExpr = T, method="proportionsInAdmixture")
-#         print(RESULTS)
         RESULTS[is.na(RESULTS)] <- 0  ####Anna## convert NAs to zeros so you can apply sum to one constraint
 
         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
@@ -689,7 +655,6 @@ print('----a')
         p <- prcomp(t(C), center = TRUE,scale. = TRUE)$x[,1:2]
         celltypes.sc = as.character(phenoDataC$cellType)
         RESULTS = t(CPM(C, celltypes.sc, TReduced, p, quantifyTypes = T, no_cores = 6)$cellTypePredictions)
-#         print(RESULTS)
         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
         RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
 
@@ -697,11 +662,8 @@ print('----a')
 
         require(EpiDISH)
         RESULTS = t(EpiDISH::epidish(beta.m = T, ref.m = C, method = "RPC")$estF)
-#         print(RESULTS)
         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
         RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-#         print(RESULTS)
-#         saveRDS(RESULTS, 'EpiDISH.rds')
 
     } else if (method=="elasticNet"){#standardize = TRUE by default. lambda=NULL by default 
 
@@ -758,7 +720,6 @@ print('----a')
         md = marker_distrib #Full version, irrespective of C
         ML = CellMix::MarkerList()
         ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
-
         RESULTS <- CellMix::ged(as.matrix(T), ML, method = "ssKL", sscale = FALSE, maxIter=500, log = FALSE)@fit@H 
 
     } else if (method=="ssFrobenius"){
@@ -767,19 +728,18 @@ print('----a')
         md = marker_distrib #Full version, irrespective of C
         ML = CellMix::MarkerList()
         ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
-
         RESULTS <- CellMix::ged(as.matrix(T), ML, method = "ssFrobenius", sscale = TRUE, maxIter = 500, log = FALSE)@fit@H #equivalent to coef(CellMix::ged(T,...)
 
     }else if (method=="deconf"){
 
-        source("deconf.R")
+#~         source("deconf.R")
 
-        #require(CellMix)
-        #md = marker_distrib #Full version, irrespective of C
-        #ML = CellMix::MarkerList()
-        #ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
+        require(CellMix)
+        md = marker_distrib #Full version, irrespective of C
+        ML = CellMix::MarkerList()
+        ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
 
-        #RESULTS <- CellMix::ged(as.matrix(T), ML, method = "deconf", maxIter = 500)@fit@H #equivalent to coef(CellMix::ged(T,...)
+        RESULTS <- CellMix::ged(as.matrix(T), ML, method = "deconf", maxIter = 500)@fit@H #equivalent to coef(CellMix::ged(T,...)
 
     } else if(method=="dtangle"){#Only works if T & C are log-transformed
 
@@ -839,10 +799,6 @@ print('----a')
     } else if (method == "MuSiC"){
 
         require(MuSiC)
-#         RESULTS = t(MuSiC::music_prop(bulk.eset = T.eset, sc.eset = C.eset, clusters = 'cellType',
-#                                             markers = NULL, normalize = FALSE, samples = 'SubjectName', 
-#                                             verbose = F)$Est.prop.weighted)
-
         RESULTS = t(MuSiC::music_prop(bulk.eset = T.eset, sc.eset = C.eset, clusters = 'cellType',
                                             markers = NULL, normalize = FALSE, samples = 'SubjectName', 
                                             verbose = F)$Est.prop.weighted)
@@ -924,7 +880,6 @@ print('----a')
         dge.tissue = deconvSeq::getdge(tissuedata, NULL, ncpm.min = 1, nsamp.min = 4, method = "bin.loess")
 
         RESULTS = t(deconvSeq::getx1.rnaseq(NB0 = "top_fdr",b0.singlecell, dge.tissue)$x1) #genes with adjusted p-values <0.05 after FDR correction
-#         print(RESULTS)
 
     } else if (method == "SCDC"){ ##Proportion estimation with traditional deconvolution + >1 subject
 
