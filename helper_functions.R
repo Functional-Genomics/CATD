@@ -1,5 +1,4 @@
 source('./CIBERSORT.R')
-source('./TIMER.R')
 options(stringsAsFactors = FALSE)
 require(dplyr)
 
@@ -795,18 +794,10 @@ print('----a')
 
         RESULTS = t(dtangle::dtangle(Y=mixture_samples, reference=reference_samples, markers = MD)$estimates)
     } else if (method=="TIMER"){
-        
-        ad = readRDS(dataset)
-        data = ad@assays$RNA@counts 
-        pData = ad@meta.data
-        #data = ad@assayData$exprs
-        #pData = ad@phenoData@data
-        ref_anno <- pData$cellID
-        names(ref_anno)<- pData$cellType
-        print(head(ref_anno))
-        print(rownames(marker_distrib))
-        RESULTS=TIMER_deconv(T, data, ref_anno, rownames(marker_distrib))
-        print(head(RESULTS))
+        source('./TIMER.R')
+        ref_anno <- phenoDataC$cellID
+        names(ref_anno)<- phenoDataC$cellType
+        RESULTS = TIMER_deconv(T, C, ref_anno, rownames(T))
         
     } else if (method=="CAMmarker"){ 
 

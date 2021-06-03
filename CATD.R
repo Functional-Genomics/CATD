@@ -2,7 +2,7 @@
 ### Helper functions + CIBERSORT external code
 source('./helper_functions.R')
 set.seed(24)
-require(limma); require(dplyr); require(pheatmap); require(Matrix)
+require(limma); require(dplyr); require(pheatmap); require(Matrix); require(sparseMatrixStats)
 args <- commandArgs(trailingOnly=TRUE)
 
 read_data<-function(dataset){
@@ -34,15 +34,9 @@ read_bulk<-function(dataset){
 	return(list('data'=data))
 }
 
-QC_feature<-function(data){
-	
-	keep <- which(Matrix::rowSums(data > 0) >= 3)
-	data = data[keep,]
-}
-
 QC<-function(X){
 	# filter features
-	keep <- which(Matrix::rowSums(X$data > 0) >= 3)
+	keep <- which(Matrix::rowSums(data > 0) >= 3)
 	X$data = X$data[keep,]
 	# Keep CTs with >= 4 cells after QC
 	to_keep = names(X$cell_counts)[X$cell_counts >= 4]
@@ -60,11 +54,12 @@ ref_mat<-function(train){
 		group[[i]] <- which(cellType %in% i)
 	}
 	#C should be made with the mean (not sum) to agree with the way markers were selected
-	C = lapply(group,function(x) Matrix::rowMeans(train[,x])) 
+	C = lapply(group,function(x) Matrix::rowMeans(train[,x]))
 	C = round(do.call(cbind.data.frame, C))
 
 	refProfiles.var = lapply(group,function(x) train[,x])
-	refProfiles.var = lapply(refProfiles.var, function(x) matrixStats::rowSds(Matrix::as.matrix(x)))
+#~ 	refProfiles.var = lapply(refProfiles.var, function(x) matrixStats::rowSds(Matrix::as.matrix(x)))
+	refProfiles.var = lapply(refProfiles.var, function(x) sparseMatrixStats::rowSds(x))
 	refProfiles.var = round(do.call(cbind.data.frame, refProfiles.var))
 	rownames(refProfiles.var) <- rownames(train)
 	return(list('C'=C, 'ref'=refProfiles.var))
