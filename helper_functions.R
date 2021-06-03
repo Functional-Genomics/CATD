@@ -654,7 +654,8 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
         TReduced = T - rowMeans(T)
         p <- prcomp(t(C), center = TRUE,scale. = TRUE)$x[,1:2]
         celltypes.sc = as.character(phenoDataC$cellType)
-        RESULTS = t(CPM(C, celltypes.sc, TReduced, p, quantifyTypes = T, no_cores = 6)$cellTypePredictions)
+        RESULTS = CPM(C, celltypes.sc, TReduced, p, quantifyTypes = T, no_cores = 6)$cellTypePredictions
+        RESULTS = t(RESULTS)
         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
         RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
 
@@ -702,14 +703,16 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
         C_EPIC[["refProfiles.var"]] <- refProfiles.var[markers,common_CTs]
 
         RESULTS <- t(EPIC::EPIC(bulk=as.matrix(T), reference=C_EPIC, withOtherCells=TRUE, scaleExprs=FALSE)$cellFractions) #scaleExprs=TRUE by default: only keep genes in common between matrices
+        
         RESULTS = RESULTS[!rownames(RESULTS) %in% "otherCells",]
+        RESULTS[is.na(RESULTS)] <- 0
 
     } else if (method=="DSA"){ #DSA algorithm assumes that the input mixed data are in linear scale; If log = FALSE the data is left unchanged
 
         require(CellMix)
-        md = marker_distrib
+        
         ML = CellMix::MarkerList()
-        ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
+        ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
         RESULTS = CellMix::ged(as.matrix(T), ML, method = "DSA", log = FALSE)@fit@H
         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
         RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
@@ -717,17 +720,17 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
     } else if (method=="ssKL"){ 
 
         require(CellMix)
-        md = marker_distrib #Full version, irrespective of C
+         #Full version, irrespective of C
         ML = CellMix::MarkerList()
-        ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
+        ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
         RESULTS <- CellMix::ged(as.matrix(T), ML, method = "ssKL", sscale = FALSE, maxIter=500, log = FALSE)@fit@H 
 
     } else if (method=="ssFrobenius"){
 
         require(CellMix)
-        md = marker_distrib #Full version, irrespective of C
+         #Full version, irrespective of C
         ML = CellMix::MarkerList()
-        ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
+        ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
         RESULTS <- CellMix::ged(as.matrix(T), ML, method = "ssFrobenius", sscale = TRUE, maxIter = 500, log = FALSE)@fit@H #equivalent to coef(CellMix::ged(T,...)
 
     }else if (method=="deconf"){
@@ -735,9 +738,9 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
 #~         source("deconf.R")
 
         require(CellMix)
-        md = marker_distrib #Full version, irrespective of C
+         #Full version, irrespective of C
         ML = CellMix::MarkerList()
-        ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
+        ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
 
         RESULTS <- CellMix::ged(as.matrix(T), ML, method = "deconf", maxIter = 500)@fit@H #equivalent to coef(CellMix::ged(T,...)
 
@@ -757,15 +760,15 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
         source('./TIMER.R')
         ref_anno <- phenoDataC$cellID
         names(ref_anno)<- phenoDataC$cellType
-        RESULTS = TIMER_deconv(T, C, ref_anno, rownames(T))
-        
+        RESULTS = t(TIMER_deconv(T, C, ref_anno, rownames(T)))
+        print(RESULTS)
     } else if (method=="CAMmarker"){ 
 
         library(debCAM)
-        md = marker_distrib #Full version, irrespective of C
+         #Full version, irrespective of C
 
         ML = CellMix::MarkerList()
-        ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
+        ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
         RESULTS = t(AfromMarkers(T, ML))
         colnames(RESULTS) <- colnames(T)
         rownames(RESULTS) <- names(ML)
@@ -819,10 +822,12 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
     } else if (method == "DWLS"){
 #         require(DWLS)
         source('./DWLS.R')
-        basename(dataset)
-        a<-sub('\\.rds$', '',basename(dataset) ) 
+        source('./DWLS.R')
+        path=paste(getwd(),"/DWLS_",STRING,sep="")
+       # basename(dataset)   ###Anna these lines used in debugging
+        #a<-sub('\\.rds$', '',basename(dataset) ) 
                     
-        path=paste(getwd(),"/DWLS_Sig_",a,sep="")
+        #path=paste(getwd(),"/DWLS_Sig_",a,sep="")
                 
 
         if(! dir.exists(path)){ #to avoid repeating marker_selection step when removing cell types; Sig.RData automatically created
