@@ -53,7 +53,7 @@ get_result<-function(norm = 'column',
 
 	bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso","ridge","EPIC",
 					 "DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "EpiDISH","CAMmarker" )
-    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM","CDSeq","TIMER")
+    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM","TIMER","CDSeq")
 	all_methods = c(bulk_methods,sc_methods)
 	
 	ds = c()
@@ -624,6 +624,7 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
     } else if (method=="proportionsInAdmixture"){#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default
 
         require(ADAPTS)
+        dimnames(datE.Admixture)[[2]]=GeneSymbols
         RESULTS = ADAPTS::estCellPercent(refExpr = C, geneExpr = T, method="proportionsInAdmixture")
         RESULTS[is.na(RESULTS)] <- 0  ####Anna## convert NAs to zeros so you can apply sum to one constraint
 
@@ -774,26 +775,27 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
         rownames(RESULTS) <- names(ML)
         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
                         
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint 
+        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
+        print(RESULTS)
          
     } else if (method=="CDSeq"){
          
-
-        dseq.result<-CDSeq::CDSeq(bulk_data =  T, cell_type_number = length(colnames(C)), mcmc_iterations = 1000, reference_gep = C, cpu_number=10,block_number=6,gene_subset_size=1000)
-        print(dseq.result)
-        saveRDS(dseq.result, "dseq.result.rds")
-        cdseq.result.celltypeassign <- cellTypeAssignSCRNA(cdseq_gep = cdseq.result$estGEP,
-                                                   cdseq_prop = cdseq.result$estProp,
-                                                   sc_gep = C,         
-                                                   sc_annotation = colnames(C),
-                                                   sc_pt_size = 3,
-                                                   cdseq_pt_size = 6,
-                                                   seurat_nfeatures = 100,
-                                                   seurat_npcs = 50,
-                                                   seurat_dims=1:5,
-                                                   plot_umap = 1,
-                                                   plot_tsne = 0)
-         print(cdseq.result.celltypeassign)
+        #saveRDS(C.eset,"C.eset.rds")
+        dseq.result<-CDSeq::CDSeq(bulk_data =  T, cell_type_number = length(unique(C.eset@phenoData@data$cellType)), mcmc_iterations = 1000,
+                                  cpu_number=10,block_number=6,gene_subset_size=1000)
+       # saveRDS(dseq.result, "CDSEq.rds")
+       # names(C.eset@phenoData@data)[1] <- "cell_id"
+        #names(C.eset@phenoData@data)[2] <-  "cell_type"
+        rownames(dseq.result$estProp)<- sub("CDSeq_estimated_cell_type_", "cell", rownames(dseq.result$estProp))
+        RESULTS = dseq.result$estProp
+       # cdseq.result.celltypeassign <- CDSeq::cellTypeAssignSCRNA(cdseq_gep = dseq.result$estGEP,
+        #                                                   cdseq_prop = dseq.result$estProp,
+         #                                                   sc_gep = C,         
+          #                                                  sc_annotation = C.eset@phenoData@data[,c("cell_id","cell_type")],
+                          #                                  nb_size = 1
+                           #                              )
+      #  saveRDS(cdseq.result.celltypeassign,"cdseq.result.celltypeassign.rds")
+        
                                                                                   
 
     ###################################
@@ -821,7 +823,6 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
 
     } else if (method == "DWLS"){
 #         require(DWLS)
-        source('./DWLS.R')
         source('./DWLS.R')
         path=paste(getwd(),"/DWLS_",STRING,sep="")
        # basename(dataset)   ###Anna these lines used in debugging
@@ -894,7 +895,9 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
     }
 
     RESULTS = RESULTS[gtools::mixedsort(rownames(RESULTS)),]
+    print(RESULTS)                    
     RESULTS = data.table::melt(RESULTS)
+    print(RESULTS)                    
 	colnames(RESULTS) <-c("CT","tissue","observed_values")
 
 	if(!is.null(P)){
@@ -903,11 +906,10 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
 		P$CT = rownames(P)
 		P = data.table::melt(P, id.vars="CT")
 		colnames(P) <-c("CT","tissue","expected_values")
-
 		RESULTS = merge(RESULTS,P)
 		RESULTS$expected_values <-round(RESULTS$expected_values,3)
 		RESULTS$observed_values <-round(RESULTS$observed_values,3)
-
+        print(RESULTS)
 	}
 
     return(RESULTS) 
