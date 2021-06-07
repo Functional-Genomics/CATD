@@ -24,7 +24,7 @@ conda install -c conda-forge r-foreign
 conda install -c conda-forge r-rmisc
 conda install -c conda-forge libcurl
 
-# CAMTHC
+# CAMTHC  # this package is not used in the pipeline, instead debCAM is used
 conda install -c r r-rjava
 conda install -c conda-forge r-pcapp
 conda install -c conda-forge r-dmwr
@@ -35,6 +35,12 @@ conda install -c conda-forge r-slam
 # Seurat
 conda install -c conda-forge r-seuratdisk
 conda install -c conda-forge r-seurat
+
+
+
+
+
+
 ```
 
 # Bioconductor packages
@@ -68,6 +74,7 @@ install.packages('remotes')
 
 # GitHub packages
 
+
 ```
 devtools::install_github("LTLA/BiocNeighbors")  
 devtools::install_github("GfellerLab/EPIC", build_vignettes=TRUE) #requires knitr
@@ -80,12 +87,25 @@ devtools::install_github("jingshuw/descend")
 install.packages("scBio")
 devtools::install_github("amitfrish/scBio")
 BiocManager::install("EpiDISH")
-devtools::install_bitbucket("yuanlab/dwls")
+devtools::install_bitbucket("yuanlab/dwls")  # this package is not used in the pipeline, instead the /DWLS.R is used
 devtools::install_github("Danko-Lab/TED/TED")
 devtools::install_github("chichaumiau/CellMix")
-devtools::install_github("Lululuella/CAMTHC")
+devtools::install_github("Lululuella/CAMTHC")  # this package is not used in the pipeline
 devtools::install_github("kkang7/CDSeq_R_Package")
+devtools::install_github('shenorrlab/bseqsc')
+
 ```
+# More
+the functions for the methods below can be found in the irrespective files in this repository: 
+TIMER : /TIMER.R  more info about the package at http://cistrome.org/TIMER/
+DWLS : /DWLS.R   more info about the package at https://github.com/dtsoucas/DWLS
+
+CIBERSORT 
+The source code for CIBERSORT can be asked from the authors at https://cibersort.stanford.edu/download.php
+#bseqsc method is also dependent on CIBERSORT
+
+
+
 # SessionInfo()
 ```
 R version 3.6.1 (2019-07-05)
