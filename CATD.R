@@ -437,7 +437,7 @@ self_reference_pro<-function(param){
 
 cross_reference<-function(param){
 	
-	if(length(param)!=12){
+	if(length(param)!=13){
 
 		print("Please check that all required parameters are indicated or are correct")
 		print("Example usage for bulk deconvolution methods: 'Rscript Master_deconvolution.R baron none bulk TMM all nnls 100 none 1'")
@@ -460,6 +460,7 @@ cross_reference<-function(param){
 	# 10: number of cores used.
 	# 11: sampleCT.
 	# 12: propsample.
+	# 13: Normalize first (T) or Transform first(F). 
 
 	dataset1 = param[1]
 	dataset2 = param[2]
@@ -490,6 +491,11 @@ cross_reference<-function(param){
         propsample = TRUE
     }else{
         propsample = FALSE
+    }
+    if(param[13]=='T'){
+		NormTrans = TRUE
+	}else{
+        NormTrans = FALSE
     }
 
 	#-------------------------------------------------------
@@ -527,17 +533,19 @@ cross_reference<-function(param){
 	#-------------------------------------------------------
 	### Transformation, scaling/normalization, marker selection for bulk deconvolution methods and deconvolution:
 	if(deconv_type == "bulk"){
-#~ 		T = Transformation(Xtest$T, transformation)
-#~ 		C = Transformation(Xtrain$C, transformation)
+		if(NormTrans){
+			T = Scaling(Xtest$T, normalization)
+			C = Scaling(Xtrain$C, normalization)
+			
+			T = Transformation(T, transformation)
+			C = Transformation(C, transformation)
+		}else{
+			T = Transformation(Xtest$T, transformation)
+			C = Transformation(Xtrain$C, transformation)
 
-#~ 		T = Scaling(T, normalization)
-#~ 		C = Scaling(C, normalization)
-
-		T = Scaling(Xtest$T, normalization)
-		C = Scaling(Xtrain$C, normalization)
-		
-		T = Transformation(T, transformation)
-		C = Transformation(C, transformation)
+			T = Scaling(T, normalization)
+			C = Scaling(C, normalization)
+		}
 
 		# marker selection (on training data) 
 		marker_distrib = marker_strategies(Xtrain$markers, marker_strategy, C)
@@ -554,18 +562,20 @@ cross_reference<-function(param){
 
 	} else if (deconv_type == "sc"){
 
-#~ 		T = Transformation(Xtest$T, transformation)
-#~ 		C = Transformation(Xtrain$train_cellID, transformation)
+		if(NormTrans){
+			T = Scaling(Xtest$T, normalization_scT)
+			C = Scaling(Xtrain$train_cellID, normalization_scC)
+			
+			T = Transformation(T, transformation)
+			C = Transformation(C, transformation)
+		}else{
+			T = Transformation(Xtest$T, transformation)
+			C = Transformation(Xtrain$train_cellID, transformation)
 
-#~ 		T = Scaling(T, normalization_scT)
-#~ 		C = Scaling(C, normalization_scC)
-
-		T = Scaling(Xtest$T, normalization_scT)
-		C = Scaling(Xtrain$train_cellID, normalization_scC)
+			T = Scaling(T, normalization_scT)
+			C = Scaling(C, normalization_scC)
+		}
 		
-		T = Transformation(T, transformation)
-		C = Transformation(C, transformation)
-
 		#If a cell type is removed, only meaningful mixtures where that CT was present (proportion < 0) are kept:
 		if(to_remove != "none"){
 
@@ -586,7 +596,7 @@ cross_reference<-function(param){
 
 bulk_reference<-function(param){
 	
-	if(length(param)!=10){
+	if(length(param)!=11){
 
 		print("Please check that all required parameters are indicated or are correct")
 		print("Example usage for bulk deconvolution methods: 'Rscript Master_deconvolution.R baron none bulk TMM all nnls 100 none 1'")
@@ -607,6 +617,7 @@ bulk_reference<-function(param){
 	# 8: number of cells used
 	# 9: remove cell type or not (none: default)
 	# 10: number of cores used.
+	# 11: Normalize first (T) or Transform first(F).
 
 	bulk = param[1]
 	dataset = param[2]
@@ -628,6 +639,11 @@ bulk_reference<-function(param){
 	number_cells = round(as.numeric(param[8]), digits = -2) #has to be multiple of 100
 	to_remove = param[9]
 	num_cores = min(as.numeric(param[10]),parallel::detectCores()-1)
+    if(param[11]=='T'){
+		NormTrans = TRUE
+	}else{
+        NormTrans = FALSE
+    }
 
 	#-------------------------------------------------------
 	### Read single cell data and metadata
@@ -637,7 +653,7 @@ bulk_reference<-function(param){
 	#-------------------------------------------------------
 	### QC
 	if(FALSE){
-#~ 		X1<-QC(X1)
+#  		X1<-QC(X1)
 		X2<-QC(X2)
 	}
 	
@@ -655,11 +671,11 @@ bulk_reference<-function(param){
 
 	#-------------------------------------------------------
 	### Generation of 1000 pseudo-bulk mixtures (T) (on test data)
-#~ 	test <- X2$data
-#~ 	colnames(test) <- X2$original_cell_names
+#  	test <- X2$data
+#  	colnames(test) <- X2$original_cell_names
 
-#~ 	Xtest <- Generator(sce = test, phenoData = X2$pData, Num.mixtures = 1000, pool.size = number_cells)
-#~ 	P <- Xtest$P
+#  	Xtest <- Generator(sce = test, phenoData = X2$pData, Num.mixtures = 1000, pool.size = number_cells)
+#  	P <- Xtest$P
 
 	P<-as.data.frame(matrix(0.1, nrow=length(unique(colnames(X2$data))), ncol=dim(X1$data)[2]))
 	rownames(P)<-unique(colnames(X2$data))
@@ -671,17 +687,19 @@ bulk_reference<-function(param){
 	#-------------------------------------------------------
 	### Transformation, scaling/normalization, marker selection for bulk deconvolution methods and deconvolution:
 	if(deconv_type == "bulk"){
-#~ 		T = Transformation(Xtest$T, transformation)
-#~ 		C = Transformation(Xtrain$C, transformation)
+		if(NormTrans){
+			T = Scaling(Xtest$T, normalization)
+			C = Scaling(Xtrain$C, normalization)
+			
+			T = Transformation(T, transformation)
+			C = Transformation(C, transformation)
+		}else{
+			T = Transformation(Xtest$T, transformation)
+			C = Transformation(Xtrain$C, transformation)
 
-#~ 		T = Scaling(T, normalization)
-#~ 		C = Scaling(C, normalization)
-
-		T = Scaling(Xtest$T, normalization)
-		C = Scaling(Xtrain$C, normalization)
-		
-		T = Transformation(T, transformation)
-		C = Transformation(C, transformation)
+			T = Scaling(T, normalization)
+			C = Scaling(C, normalization)
+		}
 
 		# marker selection (on training data) 
 		marker_distrib = marker_strategies(Xtrain$markers, marker_strategy, C)
@@ -698,17 +716,19 @@ bulk_reference<-function(param){
 
 	} else if (deconv_type == "sc"){
 
-#~ 		T = Transformation(Xtest$T, transformation)
-#~ 		C = Transformation(Xtrain$train_cellID, transformation)
+		if(NormTrans){
+			T = Scaling(Xtest$T, normalization_scT)
+			C = Scaling(Xtrain$train_cellID, normalization_scC)
+			
+			T = Transformation(T, transformation)
+			C = Transformation(C, transformation)
+		}else{
+			T = Transformation(Xtest$T, transformation)
+			C = Transformation(Xtrain$train_cellID, transformation)
 
-#~ 		T = Scaling(T, normalization_scT)
-#~ 		C = Scaling(C, normalization_scC)
-
-		T = Scaling(Xtest$T, normalization_scT)
-		C = Scaling(Xtrain$train_cellID, normalization_scC)
-		
-		T = Transformation(T, transformation)
-		C = Transformation(C, transformation)
+			T = Scaling(T, normalization_scT)
+			C = Scaling(C, normalization_scC)
+		}
 
 		#If a cell type is removed, only meaningful mixtures where that CT was present (proportion < 0) are kept:
 		if(to_remove != "none"){
@@ -749,9 +769,10 @@ bulk_2references<-function(param){
 	# 9: number of cells used
 	# 10: remove cell type or not (none: default)
 	# 11: number of cores used.
+	# 12: Normalize first (T) or Transform first(F).
 	
-	param1<-c(param[1], param[2], param[4], param[5], param[6], param[7], param[8], param[9], param[10], param[11])
-	param2<-c(param[1], param[3], param[4], param[5], param[6], param[7], param[8], param[9], param[10], param[11])
+	param1<-c(param[1], param[2], param[4], param[5], param[6], param[7], param[8], param[9], param[10], param[11], param[12])
+	param2<-c(param[1], param[3], param[4], param[5], param[6], param[7], param[8], param[9], param[10], param[11], param[12])
 	
 	RESULTS1 = bulk_reference(param1)
 	RESULTS2 = bulk_reference(param2)
@@ -767,8 +788,9 @@ bulk_2references<-function(param){
 }
 
 if(args[1]=='s'){
-#~ 	RESULTS = self_reference(args[2:length(args)])
 	RESULTS = self_reference_pro(args[2:length(args)])
+}else if(args[1]=='r'){
+	RESULTS = self_reference(args[2:length(args)])
 }else if(args[1]=='c'){
 	RESULTS = cross_reference(args[2:length(args)])
 }else if(args[1]=='b'){

@@ -13,5 +13,31 @@ Rscript CATD.R b T.rds example.rds example.rds none bulk TMM all nnls 10000 none
 
 
 git add .
-git commit -m "Chichau 1Jun2021"
+git commit -m "Chichau 8Jun2021"
 git push -u origin main
+
+
+echo "# CATD_R_package" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/Functional-Genomics/CATD_R_package.git
+git push -u origin main
+
+
+R CMD build CATD
+Rscript -e 'devtools::install_local("CATD_0.0.1.tar.gz")'
+
+
+git clone https://github.com/Functional-Genomics/CATD_R_package.git
+cd CATD_R_package
+conda env create -f CATD.yml
+conda activate mycatd
+Rscript -e 'devtools::install_github("Functional-Genomics/CATD_R_package", dependencies = TRUE, force = TRUE)'
+conda deactivate && conda remove --name mycatd --all
+
+
+
+
+devtools::document()

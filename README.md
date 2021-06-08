@@ -90,7 +90,7 @@ The `bulk_reference` function in [CATD.R](https://github.com/Functional-Genomics
 > 1. self-reference
 ```
 # With the example we provided with this repository + no cell type removed:
-Rscript CATD.R s example.rds none bulk TMM all nnls 100 none 1 F T
+Rscript CATD.R s example.rds none bulk TMM all nnls 100 none 1 F T T
 	#Expected output:
 	#        RMSE   Pearson
 	#1     0.0351    0.9866
@@ -99,7 +99,7 @@ Rscript CATD.R s example.rds none bulk TMM all nnls 100 none 1 F T
 > 2. cross-reference
 ```
 # With the example we provided with this repository + no cell type removed:
-Rscript CATD.R c example1.rds example2.rds none bulk TMM all nnls 10000 none 1 F T
+Rscript CATD.R c example1.rds example2.rds none bulk TMM all nnls 10000 none 1 F T T
 	#Expected output:
 	#        RMSE   Pearson
 	#1     0.0351    0.9866
@@ -108,7 +108,7 @@ Rscript CATD.R c example1.rds example2.rds none bulk TMM all nnls 10000 none 1 F
 > 3. real bulk
 ```
 # With the example we provided with this repository + no cell type removed:
-Rscript CATD.R b bulk.rds example1.rds example2.rds none bulk TMM all nnls 10000 none 1
+Rscript CATD.R b bulk.rds example1.rds example2.rds none bulk TMM all nnls 10000 none 1 T
 	#Expected output:
 	#        RMSE   Pearson
 	#1     0.0351    0.9866
