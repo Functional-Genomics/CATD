@@ -13,7 +13,7 @@ Rscript CATD.R b T.rds example.rds example.rds none bulk TMM all nnls 10000 none
 
 
 git add .
-git commit -m "Chichau 8Jun2021"
+git commit -m "Chichau 9Jun2021"
 git push -u origin main
 
 
@@ -39,5 +39,46 @@ conda deactivate && conda remove --name mycatd --all
 
 
 
+1. Create a skeleton package
+usethis::create_package(
+"pkgname"
+)
+
+2. License code
+usethis::use_mit_license()
+
+3. Enable code documentation inline
+usethis::use_roxygen_md()
+
+4. Create an internal package-level help documentation file
+usethis::use_package_doc()
+
+5. Add R code file our package's  R/ folder 
+
+usethis::use_r(
+"test"
+) 
+
 
 devtools::document()
+
+#' 
+#' @description
+#' 
+#' @details
+#' 
+#' @param 
+#' @param 
+#' @param 
+#' @param 
+#' @param 
+#' 
+#' @return
+#' 
+#' @example
+#' 
+
+
+CATD.R: framework.R + CATD_script.R
+helper_functions.R: benchmark.R
+new: result.R + format.R

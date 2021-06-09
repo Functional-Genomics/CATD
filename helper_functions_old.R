@@ -1077,7 +1077,7 @@ evaluation_table<-function(RESULTS, mode=1){
     return(x)
 }
                         
-getname<-function(params){
+get_name<-function(params){
     n = ''
     for( i in params){
         j = unlist(strsplit(i, "/"))

@@ -1,9 +1,5 @@
-#-------------------------------------------------------
-### Helper functions + CIBERSORT external code
-source('./helper_functions.R')
 set.seed(24)
 require(limma); require(dplyr); require(pheatmap); require(Matrix); require(sparseMatrixStats)
-args <- commandArgs(trailingOnly=TRUE)
 
 read_data<-function(dataset){
     
@@ -787,14 +783,3 @@ bulk_2references<-function(param){
 	return(RESULTS)
 }
 
-if(args[1]=='s'){
-	RESULTS = self_reference_pro(args[2:length(args)])
-}else if(args[1]=='r'){
-	RESULTS = self_reference(args[2:length(args)])
-}else if(args[1]=='c'){
-	RESULTS = cross_reference(args[2:length(args)])
-}else if(args[1]=='b'){
-	RESULTS = bulk_2references(args[2:length(args)])
-}
-name = get_name(args)
-saveRDS(RESULTS, paste0("RDS/",name,"rds"))
