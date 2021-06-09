@@ -52,8 +52,8 @@ get_result<-function(norm = 'column',
 	 'KimN2020')
 
 	bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso","ridge","EPIC",
-					 "DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "EpiDISH","CAMmarker" )
-    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM","TIMER","CDSeq")
+					 "DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "EpiDISH","CAMmarker","CDSeq")
+    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM","TIMER")
 	all_methods = c(bulk_methods,sc_methods)
 	
 	ds = c()
@@ -531,11 +531,11 @@ Scaling <- function(matrix, option, phenoDataC=NULL){
 #################################################
 ##########    DECONVOLUTION METHODS    ##########
 # T is pseudo-bulk
-Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRING = NULL, marker_distrib, dataset,refProfiles.var,pData,data){ 
+Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRING = NULL, marker_distrib,refProfiles.var){ 
 
     bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso","ridge","EPIC",
-					 "DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "EpiDISH","CAMmarker" )
-    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM","CDSeq","TIMER")
+					 "DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "EpiDISH","CAMmarker","CDSeq" )
+    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM","TIMER")
 
     ########## Using marker information for bulk_methods
     if(method %in% bulk_methods){
@@ -781,13 +781,13 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
     } else if (method=="CDSeq"){
          
         #saveRDS(C.eset,"C.eset.rds")
-        dseq.result<-CDSeq::CDSeq(bulk_data =  T, cell_type_number = length(unique(C.eset@phenoData@data$cellType)), mcmc_iterations = 1000,
-                                  cpu_number=10,block_number=6,gene_subset_size=1000)
-       # saveRDS(dseq.result, "CDSEq.rds")
-       # names(C.eset@phenoData@data)[1] <- "cell_id"
-        #names(C.eset@phenoData@data)[2] <-  "cell_type"
-        rownames(dseq.result$estProp)<- sub("CDSeq_estimated_cell_type_", "cell", rownames(dseq.result$estProp))
-        RESULTS = dseq.result$estProp
+        CDSeq.result<-CDSeq::CDSeq(bulk_data = T, cell_type_number = length(unique(marker_distrib$CT)), mcmc_iterations = 1000,
+                                  cpu_number=10,block_number=6,gene_subset_size=1000, reference_gep = C)
+        saveRDS(C,"Cnew.rds")
+        print(head(C))
+        print(str(C))
+        RESULTS = CDSeq.result$estProp
+        saveRDS(CDSeq.result,"CDSeq.result.rds")
        # cdseq.result.celltypeassign <- CDSeq::cellTypeAssignSCRNA(cdseq_gep = dseq.result$estGEP,
         #                                                   cdseq_prop = dseq.result$estProp,
          #                                                   sc_gep = C,         
