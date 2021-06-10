@@ -36,3 +36,5 @@ if(args[1]=='s'){
 }
 name = get_name(args)
 saveRDS(RESULTS, paste0("RDS/",name,"rds"))
+
+print('Finished!')

@@ -1,21 +1,37 @@
-
+# This file includes functions of the deconvolution benchmarking framework. 
 
 source('benchmark.R')
 source('deconvolution.R')
 
-run_deconvolution<-function(deconv_type,
-							NormTrans,
-							Xtest,
-							Xtrain,
-							normalization,
-							normalization_scT,
-							transformation,
-							marker_strategy,
-							to_remove,
-							P,
-							method,
-							pDataC){
-		
+#' @title Framework
+#' 
+#' @description
+#' This function contains the whole framework after data preprocessing and before deconvolution.
+#' @details
+#' This function is wrapped, because self_reference, cross_reference and bulk_reference can all reuse it. 
+#' @param 
+#' @param 
+#' @param 
+#' @param 
+#' @param 
+#' 
+#' @return
+#' The final deconvolution results. 
+#' @example
+#' 
+Framework<-function(deconv_type,
+					NormTrans,
+					Xtest,
+					Xtrain,
+					normalization,
+					normalization_scT,
+					normalization_scC,
+					transformation,
+					marker_strategy,
+					to_remove,
+					P,
+					method,
+					pDataC){
 	#-------------------------------------------------------
 	### Transformation, scaling/normalization, marker selection for bulk deconvolution methods and deconvolution:
 	if(deconv_type == "bulk"){
@@ -60,7 +76,6 @@ run_deconvolution<-function(deconv_type,
 			T = Scaling(T, normalization_scT)
 			C = Scaling(C, normalization_scC)
 		}
-
 		#If a cell type is removed, only meaningful mixtures where that CT was present (proportion < 0) are kept:
 		if(to_remove != "none"){
 
@@ -84,12 +99,38 @@ run_deconvolution<-function(deconv_type,
 							elem = to_remove, 
 							refProfiles.var = Xtrain$ref, 
 							STRING = as.character(sample(1:10000, 1)), 
+# 							STRING = "text", 
 							marker_distrib = marker_distrib, 
 							phenoDataC = pDataC) 
     
 	return(RESULTS)
 }
 
+#' @title self_reference
+#' 
+#' @description
+#' Use one single-cell references, split the dataset into two parts: train and test. 
+#' The train is used as reference, while the test is used to make pseudobulk. 
+#' @details
+#' 
+#' @param param: a list of 12 parameters:
+#' 1: dataset name
+#' 2: Transformation: none (defalt), log, sqrt, vst
+#' 3: deconvolution type: bulk, sc
+#' 4: Normalization for C, normalization
+#' 5: Normalization for T, marker strategy
+#' 6: Deconvolution method
+#' 7: number of cells used
+#' 8: remove cell type or not (none: default)
+#' 9: number of cores used.
+#' 10: sampleCT.
+#' 11: propsample.
+#' 12: Normalize first (T) or Transform first(F). 
+#' 
+#' @return
+#' The deconvolution results as a table.
+#' @example
+#' 
 self_reference<-function(param){
 	
 	if(length(param)!=12){
@@ -101,20 +142,6 @@ self_reference<-function(param){
 	} 
 
 	flag = FALSE
-
-	### arguments
-	# 1: dataset name
-	# 2: Transformation: none (defalt), log, sqrt, vst
-	# 3: deconvolution type: bulk, sc
-	# 4: Normalization for C, normalization
-	# 5: Normalization for T, marker strategy
-	# 6: Deconvolution method
-	# 7: number of cells used
-	# 8: remove cell type or not (none: default)
-	# 9: number of cores used.
-	# 10: sampleCT.
-	# 11: propsample.
-	# 12: Normalize first (T) or Transform first(F). 
 
 	dataset = param[1]
 	transformation = param[2]
@@ -160,7 +187,6 @@ self_reference<-function(param){
 	if(FALSE){
 		X<-QC(X)
 	}
-
 	#-------------------------------------------------------
 	### Data split into training/test  
 	training <- as.numeric(unlist(sapply(unique(colnames(X$data)), function(x) {
@@ -180,21 +206,47 @@ self_reference<-function(param){
 	Xtest <- Generator(sce = test, phenoData = X$pData[testing,], sampleCT = sampleCT, propsample = propsample, Num.mixtures = 1000, pool.size = number_cells)
 	P <- Xtest$P
 	
-	return(run_deconvolution(deconv_type,
-							NormTrans,
-							Xtest,
-							Xtrain,
-							normalization,
-							normalization_scT,
-							transformation,
-							marker_strategy,
-							to_remove,
-							P,
-							method,
-							pDataC))
+	return(Framework(deconv_type,
+					NormTrans,
+					Xtest,
+					Xtrain,
+					normalization,
+					normalization_scT,
+					normalization_scC,
+					transformation,
+					marker_strategy,
+					to_remove,
+					P,
+					method,
+					pDataC))
 	
 }
 
+#' @title cross_reference
+#' 
+#' @description
+#' Use two single-cell references, one to build pseudobulk, the other one to use as deconvolution reference. 
+#' @details
+#' 
+#' @param param: a list of 13 parameters:
+#' 1: dataset1 name for reference
+#' 2: dataset2 name for pseudobulk
+#' 3: Transformation: none (defalt), log, sqrt, vst
+#' 4: deconvolution type: bulk, sc
+#' 5: Normalization for C, normalization
+#' 6: Normalization for T, marker strategy
+#' 7: Deconvolution method
+#' 8: number of cells used
+#' 9: remove cell type or not (none: default)
+#' 10: number of cores used.
+#' 11: sampleCT.
+#' 12: propsample.
+#' 13: Normalize first (T) or Transform first(F). 
+#' 
+#' @return
+#' The deconvolution results as a table.
+#' @example
+#' 
 cross_reference<-function(param){
 	
 	if(length(param)!=13){
@@ -206,21 +258,6 @@ cross_reference<-function(param){
 	} 
 
 	flag = FALSE
-
-	### arguments
-	# 1: dataset1 name for reference
-	# 2: dataset2 name for pseudobulk
-	# 3: Transformation: none (defalt), log, sqrt, vst
-	# 4: deconvolution type: bulk, sc
-	# 5: Normalization for C, normalization
-	# 6: Normalization for T, marker strategy
-	# 7: Deconvolution method
-	# 8: number of cells used
-	# 9: remove cell type or not (none: default)
-	# 10: number of cores used.
-	# 11: sampleCT.
-	# 12: propsample.
-	# 13: Normalize first (T) or Transform first(F). 
 
 	dataset1 = param[1]
 	dataset2 = param[2]
@@ -290,20 +327,44 @@ cross_reference<-function(param){
 	Xtest <- Generator(sce = test, phenoData = X2$pData, Num.mixtures = 1000, sampleCT = sampleCT, propsample = propsample, pool.size = number_cells)
 	P <- Xtest$P
 
-	return(run_deconvolution(deconv_type,
-							NormTrans,
-							Xtest,
-							Xtrain,
-							normalization,
-							normalization_scT,
-							transformation,
-							marker_strategy,
-							to_remove,
-							P,
-							method,
-							pDataC))
+	return(Framework(deconv_type,
+					NormTrans,
+					Xtest,
+					Xtrain,
+					normalization,
+					normalization_scT,
+					normalization_scC,
+					transformation,
+					marker_strategy,
+					to_remove,
+					P,
+					method,
+					pDataC))
 }
 
+#' @title bulk_reference
+#' 
+#' @description
+#' Use a single-cell references to deconvolve a bulk data. 
+#' @details
+#' 
+#' @param param: a list of 11 parameters:
+#' 1: bulk name
+#' 2: reference dataset name
+#' 3: Transformation: none (defalt), log, sqrt, vst
+#' 4: deconvolution type: bulk, sc
+#' 5: Normalization for C, normalization
+#' 6: Normalization for T, marker strategy
+#' 7: Deconvolution method
+#' 8: number of cells used
+#' 9: remove cell type or not (none: default)
+#' 10: number of cores used.
+#' 11: Normalize first (T) or Transform first(F).
+#' 
+#' @return
+#' The deconvolution results as a table.
+#' @example
+#' 
 bulk_reference<-function(param){
 	
 	if(length(param)!=11){
@@ -315,19 +376,6 @@ bulk_reference<-function(param){
 	} 
 
 	flag = FALSE
-
-	### arguments
-	# 1: bulk name
-	# 2: reference dataset name
-	# 3: Transformation: none (defalt), log, sqrt, vst
-	# 4: deconvolution type: bulk, sc
-	# 5: Normalization for C, normalization
-	# 6: Normalization for T, marker strategy
-	# 7: Deconvolution method
-	# 8: number of cells used
-	# 9: remove cell type or not (none: default)
-	# 10: number of cores used.
-	# 11: Normalize first (T) or Transform first(F).
 
 	bulk = param[1]
 	dataset = param[2]
@@ -392,20 +440,45 @@ bulk_reference<-function(param){
 	colnames(P)<-colnames(X1$data)
 	Xtest<-list('T'=X1$data, 'P'=P)
 
-	return(run_deconvolution(deconv_type,
-							NormTrans,
-							Xtest,
-							Xtrain,
-							normalization,
-							normalization_scT,
-							transformation,
-							marker_strategy,
-							to_remove,
-							P,
-							method,
-							pDataC))
+	return(Framework(deconv_type,
+					NormTrans,
+					Xtest,
+					Xtrain,
+					normalization,
+					normalization_scT,
+					normalization_scC,
+					transformation,
+					marker_strategy,
+					to_remove,
+					P,
+					method,
+					pDataC))
 }
 
+#' @title bulk_2references
+#' 
+#' @description
+#' Use TWO single-cell references to deconvolve a bulk data. And compare the deconvolution results. 
+#' @details
+#' 
+#' @param param: a list of 12 parameters:
+#' 1: bulk
+#' 2: reference1
+#' 3: reference2
+#' 4: Transformation: none (defalt), log, sqrt, vst
+#' 5: deconvolution type: bulk, sc
+#' 6: Normalization for C, normalization
+#' 7: Normalization for T, marker strategy
+#' 8: Deconvolution method
+#' 9: number of cells used
+#' 10: remove cell type or not (none: default)
+#' 11: number of cores used.
+#' 12: Normalize first (T) or Transform first(F).
+#' 
+#' @return
+#' The combined deconvolution results as a table.
+#' @example
+#' 
 bulk_2references<-function(param){
 	
 	if(length(param)!=11){
@@ -419,18 +492,7 @@ bulk_2references<-function(param){
 	flag = FALSE
 
 	### arguments
-	# 1: bulk
-	# 2: reference1
-	# 3: reference2
-	# 4: Transformation: none (defalt), log, sqrt, vst
-	# 5: deconvolution type: bulk, sc
-	# 6: Normalization for C, normalization
-	# 7: Normalization for T, marker strategy
-	# 8: Deconvolution method
-	# 9: number of cells used
-	# 10: remove cell type or not (none: default)
-	# 11: number of cores used.
-	# 12: Normalize first (T) or Transform first(F).
+
 	
 	param1<-c(param[1], param[2], param[4], param[5], param[6], param[7], param[8], param[9], param[10], param[11], param[12])
 	param2<-c(param[1], param[3], param[4], param[5], param[6], param[7], param[8], param[9], param[10], param[11], param[12])

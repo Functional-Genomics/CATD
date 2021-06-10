@@ -11,8 +11,8 @@ trimData<-function(Signature,bulkData){
 	Genes<-intersect(rownames(Signature),names(bulkData))
   	B<-bulkData[Genes]
   	S<-Signature[Genes,]
-    print(S)
-    print("Signaturee")
+#     print(S)
+#     print("Signaturee")
   	return(list("sig"=S,"bulk"=B))
 }
 
@@ -20,8 +20,8 @@ trimData<-function(Signature,bulkData){
 #solve using OLS, constrained such that cell type numbers>0
 solveOLS<-function(S,B){
   D<-t(S)%*%S
-  print(str(D))
-  print(D)
+#   print(str(D))
+#   print(D)
   d<-t(S)%*%B
   A<-cbind(diag(dim(S)[2]))
   bzero<-c(rep(0,dim(S)[2]))
@@ -136,7 +136,7 @@ solveSVR<-function(S,B){
   coef[which(coef<0)]<-0
   coef<-as.vector(coef)
   names(coef)<-colnames(S)
-  print(round(coef/sum(coef),5))
+#   print(round(coef/sum(coef),5))
   return(coef/sum(coef))
 }
 
@@ -157,7 +157,7 @@ buildSignatureMatrixUsingSeurat<-function(scdata,id,path,diff.cutoff=0.5,pval.cu
   
   #perform differential expression analysis
   DEAnalysis(scdata,id,path)
-  
+
   numberofGenes<-c()
   for (i in unique(id)){
     load(file=paste(path,"/de_",i,".RData",sep=""))
@@ -322,7 +322,7 @@ DEAnalysisMAST<-function(scdata,id,path){
 buildSignatureMatrixMAST<-function(scdata,id,path,diff.cutoff=0.5,pval.cutoff=0.01){
   #compute differentially expressed genes for each cell type
   DEAnalysisMAST(scdata,id,path)
-  
+
   #for each cell type, choose genes in which FDR adjusted p-value is less than 0.01 and the estimated fold-change
   #is greater than 0.5
   numberofGenes<-c()
@@ -337,7 +337,7 @@ buildSignatureMatrixMAST<-function(scdata,id,path,diff.cutoff=0.5,pval.cutoff=0.
       numberofGenes<-c(numberofGenes,length(DEGenes[nonMir]))
     }
   }
-  
+
   #need to reduce number of genes
   #for each subset, order significant genes by decreasing fold change, choose between 50 and 200 genes
   #for each, iterate and choose matrix with lowest condition number
@@ -378,9 +378,17 @@ buildSignatureMatrixMAST<-function(scdata,id,path,diff.cutoff=0.5,pval.cutoff=0.
     }
     j=j+1
   }
+
   Genes<-unique(Genes)
-  ExprSubset<-scdata[Genes,]
+  if(length(Genes)<2){
+		ExprSubset<-scdata
+	}else{
+		ExprSubset<-scdata[Genes,]
+	}
+  
+#   ExprSubset<-scdata[Genes,]
   Sig<-NULL
+
   for (i in unique(id)){
     Sig<-cbind(Sig,(apply(ExprSubset,1,function(y) mean(y[which(id==i)]))))
   }
