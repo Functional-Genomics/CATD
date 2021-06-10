@@ -1,4 +1,5 @@
 # This file includes functions in the benchmarking process. 
+# TODO: "LinSeed"
 # TODO: document the functions
 
 require(Biobase)
@@ -9,8 +10,8 @@ require(Biobase)
 Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRING = NULL, marker_distrib, refProfiles.var){ 
 
     bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso","ridge","EPIC",
-					 "DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "svmdecon", "EpiDISH","CAMmarker","CDSeq" ,"TIMER")
-    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM")
+					 "DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "svmdecon", "EpiDISH","CAMmarker","CDSeq" )
+    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM","TIMER")
     
     keep = intersect(rownames(C),rownames(T)) 
     C = C[keep,]
@@ -48,7 +49,8 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
 				  phenoDataC = phenoDataC, 
 				  marker_distrib = marker_distrib,
 				  refProfiles.var = refProfiles.var, 
-				  STRING = STRING)
+				  STRING = STRING,
+				  elem = elem)
 
     RESULTS = RESULTS[gtools::mixedsort(rownames(RESULTS)),]                  
     RESULTS = data.table::melt(RESULTS)                   
@@ -83,8 +85,7 @@ run_CAMmarker<-function(T, C, marker_distrib, ...){
 	return(RESULTS)
 }
 run_CDSeq<-function(T, C, marker_distrib, ...){
-	RESULTS<-CDSeq::CDSeq(bulk_data = T, reference_gep = C, cell_type_number = length(unique(marker_distrib$CT)), mcmc_iterations = 1000,
-							  cpu_number=10, block_number=1, gene_subset_size=dim(T)[1])$estProp
+	RESULTS<-CDSeq::CDSeq(bulk_data = T, reference_gep = C, cell_type_number = length(unique(marker_distrib$CT)))$estProp
 	return(RESULTS)
 }
 run_CIBERSORT<-function(T, C, ...){
@@ -192,13 +193,6 @@ run_RLR<-function(T, C, ...){
 	return(RESULTS)
 }
 
-run_TIMER<-function(T, C, phenoDataC, ...){
-	source('TIMER.R')
-	ref_anno <- phenoDataC$cellID
-	names(ref_anno)<- phenoDataC$cellType
-	RESULTS = t(TIMER_deconv(T, C, ref_anno, rownames(T)))
-	return(RESULTS)
-}
 run_deconf<-function(T, C, marker_distrib, ...){
 
 	##source("deconf.R")
@@ -303,11 +297,12 @@ run_proportionsInAdmixture<-function(T, C, ...){
 
 run_ssFrobenius<-function(T, C, marker_distrib, ...){
 
-	require(CellMix)
+	require(CellMix) # require NMF 0.23.0, but NMF 0.30.1 does not work.
 	md = marker_distrib #Full version, irrespective of C
 	ML = CellMix::MarkerList()
 	ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
 	RESULTS <- CellMix::ged(as.matrix(T), ML, method = "ssFrobenius", sscale = TRUE, maxIter = 500, log = FALSE)@fit@H #equivalent to coef(CellMix::ged(T,...)
+	print(2)
 	return(RESULTS)
 }
 
@@ -373,19 +368,18 @@ run_bseqsc<-function(T, C, T.eset, C.eset, ...){
 	RESULTS = coef(fit)
 	return(RESULTS)
 }
-run_DWLS<-function(T, C, phenoDataC, STRING, ...){
+run_DWLS<-function(T, C, phenoDataC, STRING, elem, ...){
 # 	require(DWLS)
 	source('DWLS.R')
 	path=paste(getwd(),"/DWLS_", STRING,sep="")
 
-	Signature <- buildSignatureMatrixMAST(scdata = C, id = as.character(phenoDataC$cellType), path = path, diff.cutoff = 0.5, pval.cutoff = 0.01)
-
-# 	if(! dir.exists(path)){ #to avoid repeating marker_selection step when removing cell types; Sig.RData automatically created
-# 		dir.create(path)
+	if(! dir.exists(path)){ #to avoid repeating marker_selection step when removing cell types; Sig.RData automatically created
+		dir.create(path)
 # 		Signature <- buildSignatureMatrixMAST(scdata = C, id = as.character(phenoDataC$cellType), path = path, diff.cutoff = 0.5, pval.cutoff = 0.01)
 # 	    Signature <- DWLS::buildSignatureMatrixMAST(scdata = C, id = as.character(phenoDataC$cellType), path = path, diff.cutoff = 0.5, pval.cutoff = 0.01)
 
-# 	} else {#re-load signature and remove CT column + its correspondent markers
+	} 
+# 	else {#re-load signature and remove CT column + its correspondent markers
 
 # 		load(paste(path,"Sig.RData",sep="/"))
 # 		Signature <- Sig
@@ -401,6 +395,7 @@ run_DWLS<-function(T, C, phenoDataC, STRING, ...){
 # 		}
 		
 # 	}
+	Signature <- buildSignatureMatrixMAST(scdata = C, id = as.character(phenoDataC$cellType), path = path, diff.cutoff = 0.5, pval.cutoff = 0.01)
 	RESULTS <- apply(T,2, function(x){
 		b = setNames(x, rownames(T))
 		tr <- trimData(Signature, b)
@@ -444,4 +439,10 @@ run_SCDC<-function(T, C, T.eset, C.eset, phenoDataC, ...){
 								 iter.max = 200)$prop.est.mvw)
 	return(RESULTS)
 }
-
+run_TIMER<-function(T, C, phenoDataC, ...){
+	source('TIMER.R')
+	ref_anno <- phenoDataC$cellID
+	names(ref_anno)<- phenoDataC$cellType
+	RESULTS = t(TIMER_deconv(mix = T, ref = C, curated.cell.types = ref_anno, sig = rownames(T)))
+	return(RESULTS)
+}

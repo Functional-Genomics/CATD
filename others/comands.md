@@ -92,10 +92,11 @@ Rscript CATD_script.R s data/3type_batch1.rds none sc TMM all MuSiC 100 none 1 F
 Rscript CATD_script.R s data/3type_batch1.rds none sc TMM all SCDC 100 none 1 F T T 
 Rscript CATD_script.R s data/3type_batch1.rds none sc TMM all bseqsc 100 none 1 F T T 
 Rscript CATD_script.R s data/3type_batch1.rds none sc TMM all deconvSeq 100 none 1 F T T
-Rscript CATD_script.R s data/3type_batch1.rds none sc TMM all DWLS 100 none 1 F T T   ## NOT DONE
+Rscript CATD_script.R s data/3type_batch1.rds none sc TMM all DWLS 100 none 1 F T T
+Rscript CATD_script.R s data/3type_batch1.rds none sc TMM all TIMER 100 none 1 F T T 
 
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all CAMmarker 100 none 1 F T T
-Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all CDSeq 100 none 1 F T T   ## NOT DONE
+Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all CDSeq 100 none 1 F T T 
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all CIBERSORT 100 none 1 F T T
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all DCQ 100 none 1 F T T
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all DSA 100 none 1 F T T
@@ -105,7 +106,6 @@ Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all EpiDISH 100 none
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all FARDEEP 100 none 1 F T T
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all OLS 100 none 1 F T T
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all RLR 100 none 1 F T T
-Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all TIMER 100 none 1 F T T   ## NOT DONE
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all deconf 100 none 1 F T T
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all dtangle 100 none 1 F T T
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all elasticNet 100 none 1 F T T
@@ -113,16 +113,6 @@ Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all lasso 100 none 1
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all ridge 100 none 1 F T T
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all nnls 100 none 1 F T T
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all proportionsInAdmixture 100 none 1 F T T
-Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all ssFrobenius 100 none 1 F T T   ## NOT DONE
-Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all ssKL 100 none 1 F T T   ## NOT DONE
+Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all ssFrobenius 100 none 1 F T T
+Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all ssKL 100 none 1 F T T
 
-
-Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all ssFrobenius 100 none 1 F T T   ## NOT DONE
-Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all ssKL 100 none 1 F T T   ## NOT DONE
-
-Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all TIMER 100 none 1 F T T   ## NOT DONE
-Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all CDSeq 100 none 1 F T T   ## NOT DONE
-
-
-
-Rscript CATD.R s ../simdataR/3type_batch1.rds none bulk TMM all ssFrobenius 100 none 1 F T T

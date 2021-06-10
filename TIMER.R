@@ -97,7 +97,7 @@ TIMER_deconv <- function(mix,ref,curated.cell.types,sig){
     curated.ref.genes.br=tmp$rr # regular ref profiles after batch correction 
     curated.ref.genes.agg.br=tmp$rrg # collapsed ref
     ##### Step 2: Eliminate outlier genes 
-    id = RemoveOutliers(sig,curated.ref.genes.agg.br)
+    id = RemoveOutliers(sig, curated.ref.genes.agg.br)
     ##### Step 3: Perform batch deconvolution
     XX=curated.ref.genes.agg.br[id,]
     YYd=dd.br[id,]
