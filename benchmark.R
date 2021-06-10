@@ -1,31 +1,10 @@
+# This file includes functions in the benchmarking process. 
+
 options(stringsAsFactors = FALSE)
-require(dplyr)
-
-
-
-Normalization <- function(data){
-
-    data <- edgeR::DGEList(data)
-    CtrlGenes <- grep("ERCC-",rownames(data))
-
-    if(length(CtrlGenes)>1){
-
-        spikes <- data[CtrlGenes,]
-        spikes <- edgeR::calcNormFactors(spikes, method = "TMM") 
-        data$samples$norm.factors <- spikes$samples$norm.factors
-
-    } else {
-
-        data <- edgeR::calcNormFactors(data, method = "TMM")  
-
-    }
-
-    return(data)
-
-}
+set.seed(24)
+require(limma); require(dplyr); require(pheatmap); require(Matrix); require(sparseMatrixStats)
 
 # Added parameters: sampleCT = FALSE, propsample = TRUE, pct.var=30
-
 Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.var=30, Num.mixtures = 1000, 
 					  pool.size = 100, min.percentage = 1, max.percentage = 99, seed = 24){ 
 
@@ -119,106 +98,6 @@ Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.v
   
 } 
 
-
-
-marker.fc <- function(fit2, cont.matrix, log2.threshold = 1, output_name = "markers"){
-  
-	topTable_RESULTS = limma::topTable(fit2, coef = 1:ncol(cont.matrix), number = Inf, adjust.method = "BH", p.value = 0.05, lfc = log2.threshold)
-    
-    if(dim(topTable_RESULTS)[1]<1){
-        topTable_RESULTS = limma::topTable(fit2, coef = 1:ncol(cont.matrix), number = Inf, adjust.method = "BH", 
-                                       p.value = 0.05, lfc = 0.1)
-        log2.threshold = 0.1
-    }
-	AveExpr_pval <- topTable_RESULTS[,(ncol(topTable_RESULTS)-3):ncol(topTable_RESULTS)]
-	topTable_RESULTS <- topTable_RESULTS[,1:(ncol(topTable_RESULTS)-4)]
-	if(length(grep("ERCC-",topTable_RESULTS$gene)) > 0){ topTable_RESULTS <- topTable_RESULTS[-grep("ERCC-",topTable_RESULTS$gene),] }
-
-	markers <- apply(topTable_RESULTS,1,function(x){
-	temp = sort(x)
-	((temp[ncol(topTable_RESULTS)] - temp[ncol(topTable_RESULTS)-1]) >= log2.threshold) | (abs(temp[1] - temp[2]) >= log2.threshold)
-
-	})
-	topTable_RESULTS = topTable_RESULTS[markers,]
-	markers <- cbind.data.frame(rownames(topTable_RESULTS),
-	                                   t(apply(topTable_RESULTS, 1, function(x){
-	                                     temp = max(x)
-	                                     if(temp < log2.threshold){
-	                                       temp = c(min(x),colnames(topTable_RESULTS)[which.min(x)])
-	                                     } else {
-	                                       temp = c(max(x),colnames(topTable_RESULTS)[which.max(x)])
-	                                     } 
-	                                     temp
-	                                   })))
-	colnames(markers) <- c("gene","log2FC","CT")
-	markers$log2FC = as.numeric(as.character(markers$log2FC))
-	markers <- markers %>% dplyr::arrange(CT,desc(log2FC)) 
-	markers$AveExpr <- AveExpr_pval$AveExpr[match(markers$gene,rownames(AveExpr_pval))]
-	markers$gene <- as.character(markers$gene)
-	markers$CT <- as.character(markers$CT)
-
-	#write.table(markers, file = output_name, row.names = FALSE, col.names = TRUE, sep = "\t", quote = FALSE)
-
-	return(markers)
-  
-}
-
-
-
-marker_strategies <- function(marker_distrib, marker_strategy, C){
-
-    set.seed(4)
-
-    if(marker_strategy == "all"){
-        
-        #using all markers that were found
-        markers = marker_distrib
-
-    } else if (marker_strategy == "pos_fc"){
-
-        # using only markers with positive FC (=over-expressed in cell type of interest)
-        markers = marker_distrib %>% dplyr::filter(log2FC > 0) %>% as.data.frame()
-
-    } else if (marker_strategy == "top_50p_logFC"){
-
-        # top 50% of markers (per CT) based on logFC
-        markers = marker_distrib %>% dplyr::filter(log2FC > 0) %>% dplyr::arrange(CT, desc(log2FC)) %>% group_by(CT) %>% dplyr::top_n(ceiling(n()*0.5), wt=log2FC) %>% as.data.frame()
-
-    } else if (marker_strategy == "bottom_50p_logFC"){
-
-        # bottom 50% of markers based on logFC
-        markers = marker_distrib %>% dplyr::filter(log2FC > 0) %>% dplyr::arrange(CT, desc(log2FC)) %>% group_by(CT) %>% dplyr::top_n(floor(n()*-0.5), wt=log2FC) %>% as.data.frame()
-
-    } else if (marker_strategy == "top_50p_AveExpr"){
-
-        # top 50% of markers based on average gene expression (baseline expression)
-        markers = marker_distrib %>% dplyr::filter(log2FC > 0) %>% dplyr::arrange(CT, desc(AveExpr)) %>% group_by(CT) %>% dplyr::top_n(ceiling(n()*0.5), wt=log2FC) %>% as.data.frame()
-
-    } else if (marker_strategy == "bottom_50p_AveExpr"){
-
-        # low 50% based on average gene expression.
-        markers = marker_distrib %>% dplyr::filter(log2FC > 0) %>% dplyr::arrange(CT, desc(AveExpr)) %>% group_by(CT) %>% dplyr::top_n(floor(n()*-0.5), wt=log2FC) %>% as.data.frame()
-
-    } else if (marker_strategy == "top_n2"){
-
-        # using the top 2 genes/CT with highest log2FC
-        markers = marker_distrib %>% dplyr::filter(log2FC > 0) %>% dplyr::arrange(CT, desc(log2FC)) %>% group_by(CT) %>% dplyr::top_n(2, wt=log2FC) %>% as.data.frame()
-    
-    } else if (marker_strategy == "random5"){
-
-        # using 5 random markers for each different cell types
-        markers = marker_distrib[1:(ncol(C)*5),]
-        markers$CT = rep(colnames(C),5) #labelling purposes: important for semi-supervised
-        markers$gene = sample(rownames(C), nrow(markers), replace = FALSE)
-
-    }
-
-    return(markers) 
-
-}
-
-
-
 Transformation <- function(matrix, option){
     
     #############################################################
@@ -250,9 +129,6 @@ Transformation <- function(matrix, option){
     return(matrix)
 
 }
-
-
-
 
 Scaling <- function(matrix, option, phenoDataC=NULL){
 
@@ -442,393 +318,233 @@ Scaling <- function(matrix, option, phenoDataC=NULL){
 
 }
 
-
-
-
-#################################################
-##########    DECONVOLUTION METHODS    ##########
-# T is pseudo-bulk
-Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRING = NULL, marker_distrib,refProfiles.var){ 
-
-    bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso","ridge","EPIC",
-					 "DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "EpiDISH","CAMmarker","CDSeq" )
-    sc_methods = c("MuSiC","BisqueRNA","DWLS","deconvSeq","SCDC","bseqsc","CPM","TIMER")
-
-    ########## Using marker information for bulk_methods
-    if(method %in% bulk_methods){
-        C = C[rownames(C) %in% marker_distrib$gene,]
-        T = T[rownames(T) %in% marker_distrib$gene,]
-        refProfiles.var = refProfiles.var[rownames(refProfiles.var) %in% marker_distrib$gene,]
-
-    } else { ### For scRNA-seq methods 
-
-       #BisqueRNA requires "SubjectName" in phenoDataC
-#~        if(length(grep("[N-n]ame",colnames(phenoDataC))) > 0){
-#~         	sample_column = grep("[N-n]ame",colnames(phenoDataC))
-#~         } else {
-#~          	sample_column = grep("[S-s]ample|[S-s]ubject",colnames(phenoDataC))
-#~             sample_column = grep("sampleID",colnames(phenoDataC))
-#~         }
-
-        sample_column = grep("sampleID",colnames(phenoDataC)) 
-        colnames(phenoDataC)[sample_column] = "SubjectName"
-        rownames(phenoDataC) = phenoDataC$cellID
-        require(xbioc) 
-        C.eset <- Biobase::ExpressionSet(assayData = as.matrix(C),phenoData = Biobase::AnnotatedDataFrame(phenoDataC))
-        T.eset <- Biobase::ExpressionSet(assayData = as.matrix(T))
-    }
-
-    ##########    MATRIX DIMENSION APPROPRIATENESS    ##########
-    keep = intersect(rownames(C),rownames(T)) 
-    C = C[keep,]
-    T = T[keep,]
+########################################################################
+read_data<-function(dataset){
     
-    ###################################
-    if(method=="CIBERSORT"){ #without QN. By default, CIBERSORT performed QN (only) on the mixture.
-		source('./CIBERSORT.R')
-        write.table(C, file = xf <- 'reference.tsv', sep = "\t", row.names = TRUE, col.names = NA)
-        write.table(T, file = yf <- 'mixture.tsv', sep = "\t", row.names = TRUE, col.names = NA)
-        message("* Running CIBERSORT ... ", appendLF = FALSE)
-        RESULTS = CIBERSORT(sig_matrix = xf, mixture_file = yf, QN = FALSE) 
+    ad = readRDS(dataset)
+    if (class(ad)== "Seurat") {
+#        print("input of class SeuratObject")
+        data = ad@assays$RNA@counts 
+        pData = ad@meta.data
+    } else if (class(ad) =="ExpressionSet"){
         
-#         RESULTS = CIBERSORT(sig_matrix = C, mixture_file = T, QN = FALSE) 
-        RESULTS = t(RESULTS[,1:(ncol(RESULTS)-3)])
-
-    } else if(method=="DeconRNASeq"){ #nonnegative quadratic programming; lsei function (default: type=1, meaning lsei from quadprog)
-        #datasets and reference matrix: signatures, need to be non-negative. 
-        #"use.scale": whether the data should be centered or scaled, default = TRUE
-        unloadNamespace("Seurat") #needed for PCA step
-        library(pcaMethods) #needed for DeconRNASeq to work
-        RESULTS = t(DeconRNASeq::DeconRNASeq(datasets = as.data.frame(T), signatures = as.data.frame(C), proportions = NULL, checksig = FALSE, known.prop = FALSE, use.scale = FALSE, fig = FALSE)$out.all)
-        colnames(RESULTS) = colnames(T)
-        require(Seurat)
-
-    } else if (method=="OLS"){
-        
-        RESULTS = apply(T,2,function(x) lm(x ~ as.matrix(C))$coefficients[-1])
-        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-        rownames(RESULTS) <- unlist(lapply(strsplit(rownames(RESULTS),")"),function(x) x[2]))
-
-    } else if (method=="nnls"){
-
-        require(nnls)
-        RESULTS = do.call(cbind.data.frame,lapply(apply(T,2,function(x) nnls::nnls(as.matrix(C),x)), function(y) y$x))
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-        rownames(RESULTS) <- colnames(C)
-
-    } else if (method=="FARDEEP"){
-
-        require(FARDEEP)
-        RESULTS = t(FARDEEP::fardeep(C, T, nn = TRUE, intercept = TRUE, permn = 10, QN = FALSE)$abs.beta)
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
-    } else if (method=="RLR"){ #RLR = robust linear regression
-
-        require(MASS)
-        RESULTS = do.call(cbind.data.frame,lapply(apply(T,2,function(x) MASS::rlm(x ~ as.matrix(C), maxit=100)), function(y) y$coefficients[-1]))
-        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-        rownames(RESULTS) <- unlist(lapply(strsplit(rownames(RESULTS),")"),function(x) x[2]))
-
-    } else if (method=="DCQ"){#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default
-
-        require(ComICS)
-        RESULTS = t(ComICS::dcq(reference_data = C, mix_data = T, marker_set = as.data.frame(row.names(C)) , alpha_used = 0.05, lambda_min = 0.2, number_of_repeats = 10)$average)
-        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
-    } else if (method=="proportionsInAdmixture"){#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default
-
-        require(ADAPTS)
-        dimnames(datE.Admixture)[[2]]=GeneSymbols
-        RESULTS = ADAPTS::estCellPercent(refExpr = C, geneExpr = T, method="proportionsInAdmixture")
-        RESULTS[is.na(RESULTS)] <- 0  ####Anna## convert NAs to zeros so you can apply sum to one constraint
-
-        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
-#     } else if (method=="spillOver"){#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default
-
-#         require(ADAPTS)
-#         RESULTS = ADAPTS::estCellPercent(refExpr = C, geneExpr = T, method="spillOver")
-# #         print(RESULTS)
-#         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-#         RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
-#     } else if (method=="svmdecon"){#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default
-
-#         require(ADAPTS)
-# #         RESULTS = ADAPTS::estCellPercent(refExpr = C, geneExpr = T, method="svmdecon")
-#         RESULTS = ADAPTS::estCellPercent.svmdecon(refExpr = C, geneExpr = T)
-# #         print(RESULTS)
-#         RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-#         RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
-    } else if (method=="CPM"){#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default
-
-        require(scBio)
-        
-        TReduced = T - rowMeans(T)
-        p <- prcomp(t(C), center = TRUE,scale. = TRUE)$x[,1:2]
-        celltypes.sc = as.character(phenoDataC$cellType)
-        RESULTS = CPM(C, celltypes.sc, TReduced, p, quantifyTypes = T, no_cores = 6)$cellTypePredictions
-        RESULTS = t(RESULTS)
-        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
-    } else if (method=="EpiDISH"){#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default
-
-        require(EpiDISH)
-        RESULTS = t(EpiDISH::epidish(beta.m = T, ref.m = C, method = "RPC")$estF)
-        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
-    } else if (method=="elasticNet"){#standardize = TRUE by default. lambda=NULL by default 
-
-        require(glmnet)# gaussian is the default family option in the function glmnet. https://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html
-        RESULTS = apply(T, 2, function(z) coef(glmnet::glmnet(x = as.matrix(C), y = z, alpha = 0.2, standardize = TRUE, lambda = glmnet::cv.glmnet(as.matrix(C), z)$lambda.1se))[1:ncol(C)+1,])
-        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
-    } else if (method=="ridge"){ #alpha=0
-
-        require(glmnet)
-        RESULTS = apply(T, 2, function(z) coef(glmnet::glmnet(x = as.matrix(C), y = z, alpha = 0, standardize = TRUE, lambda = glmnet::cv.glmnet(as.matrix(C), z)$lambda.1se))[1:ncol(C)+1,])
-        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
-    } else if (method=="lasso"){ #alpha=1; shrinking some coefficients to 0. 
-
-        require(glmnet)
-        RESULTS = apply(T, 2, function(z) coef(glmnet::glmnet(x = as.matrix(C), y = z, alpha = 1, standardize = TRUE, lambda = glmnet::cv.glmnet(as.matrix(C), z)$lambda.1se))[1:ncol(C)+1,])
-        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
-        RESULTS[is.na(RESULTS)] <- 0 #Needed for models where glmnet drops all terms of a model and fit an intercept-only model (very unlikely but possible).
-
-    } else if (method=="EPIC"){
-
-        require(EPIC)
-        marker_distrib = marker_distrib[marker_distrib$gene %in% rownames(C),]
-        markers = as.character(marker_distrib$gene)
-        C_EPIC <- list()
-
-        common_CTs <- intersect(colnames(C),colnames(refProfiles.var))
-
-        C_EPIC[["sigGenes"]] <- rownames(C[markers,common_CTs])
-        C_EPIC[["refProfiles"]] <- as.matrix(C[markers,common_CTs])
-        C_EPIC[["refProfiles.var"]] <- refProfiles.var[markers,common_CTs]
-
-        RESULTS <- t(EPIC::EPIC(bulk=as.matrix(T), reference=C_EPIC, withOtherCells=TRUE, scaleExprs=FALSE)$cellFractions) #scaleExprs=TRUE by default: only keep genes in common between matrices
-        
-        RESULTS = RESULTS[!rownames(RESULTS) %in% "otherCells",]
-        RESULTS[is.na(RESULTS)] <- 0
-
-    } else if (method=="DSA"){ #DSA algorithm assumes that the input mixed data are in linear scale; If log = FALSE the data is left unchanged
-
-        require(CellMix)
-        
-        ML = CellMix::MarkerList()
-        ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
-        RESULTS = CellMix::ged(as.matrix(T), ML, method = "DSA", log = FALSE)@fit@H
-        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
-    } else if (method=="ssKL"){ 
-
-        require(CellMix)
-         #Full version, irrespective of C
-        ML = CellMix::MarkerList()
-        ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
-        RESULTS <- CellMix::ged(as.matrix(T), ML, method = "ssKL", sscale = FALSE, maxIter=500, log = FALSE)@fit@H 
-
-    } else if (method=="ssFrobenius"){
-
-        require(CellMix)
-         #Full version, irrespective of C
-        ML = CellMix::MarkerList()
-        ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
-        RESULTS <- CellMix::ged(as.matrix(T), ML, method = "ssFrobenius", sscale = TRUE, maxIter = 500, log = FALSE)@fit@H #equivalent to coef(CellMix::ged(T,...)
-
-    }else if (method=="deconf"){
-
-#~         source("deconf.R")
-
-        require(CellMix)
-         #Full version, irrespective of C
-        ML = CellMix::MarkerList()
-        ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
-
-        RESULTS <- CellMix::ged(as.matrix(T), ML, method = "deconf", maxIter = 500)@fit@H #equivalent to coef(CellMix::ged(T,...)
-
-    } else if(method=="dtangle"){#Only works if T & C are log-transformed
-
-        require(dtangle)
-        mixture_samples = t(T)
-        reference_samples = t(C)
-
-        marker_distrib <- tidyr::separate_rows(marker_distrib,"CT",sep="\\|")    
-        marker_distrib = marker_distrib[marker_distrib$gene %in% rownames(C),] 
-        MD <- tapply(marker_distrib$gene,marker_distrib$CT,list)
-        MD <- lapply(MD,function(x) sapply(x, function(y) which(y==rownames(C))))
-
-        RESULTS = t(dtangle::dtangle(Y=mixture_samples, reference=reference_samples, markers = MD)$estimates)
-    } else if (method=="TIMER"){
-        source('./TIMER.R')
-        ref_anno <- phenoDataC$cellID
-        names(ref_anno)<- phenoDataC$cellType
-        RESULTS = t(TIMER_deconv(T, C, ref_anno, rownames(T)))
-        print(RESULTS)
-    } else if (method=="CAMmarker"){ 
-
-        library(debCAM)
-         #Full version, irrespective of C
-
-        ML = CellMix::MarkerList()
-        ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
-        RESULTS = t(AfromMarkers(T, ML))
-        colnames(RESULTS) <- colnames(T)
-        rownames(RESULTS) <- names(ML)
-        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-                        
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-        print(RESULTS)
-         
-    } else if (method=="CDSeq"){
-         
-        #saveRDS(C.eset,"C.eset.rds")
-        CDSeq.result<-CDSeq::CDSeq(bulk_data = T, cell_type_number = length(unique(marker_distrib$CT)), mcmc_iterations = 1000,
-                                  cpu_number=10,block_number=6,gene_subset_size=1000, reference_gep = C)
-        saveRDS(C,"Cnew.rds")
-        print(head(C))
-        print(str(C))
-        RESULTS = CDSeq.result$estProp
-        saveRDS(CDSeq.result,"CDSeq.result.rds")
-       # cdseq.result.celltypeassign <- CDSeq::cellTypeAssignSCRNA(cdseq_gep = dseq.result$estGEP,
-        #                                                   cdseq_prop = dseq.result$estProp,
-         #                                                   sc_gep = C,         
-          #                                                  sc_annotation = C.eset@phenoData@data[,c("cell_id","cell_type")],
-                          #                                  nb_size = 1
-                           #                              )
-      #  saveRDS(cdseq.result.celltypeassign,"cdseq.result.celltypeassign.rds")
-        
-                                                                                  
-
-    ###################################
-    ###################################
-    
-    } else if (method == "MuSiC"){
-
-        require(MuSiC)
-        RESULTS = t(MuSiC::music_prop(bulk.eset = T.eset, sc.eset = C.eset, clusters = 'cellType',
-                                            markers = NULL, normalize = FALSE, samples = 'SubjectName', 
-                                            verbose = F)$Est.prop.weighted)
-
-    } else if (method == "bseqsc"){
-
-        require(bseqsc)
-        bseqsc_config('CIBERSORT.R')
-        cells = unique(C.eset@phenoData@data$cellType)
-        markers<-list()
-        for(cell in cells){
-            markers[cell]<-list(keep)
-        }
-        B.eset = bseqsc_basis(C.eset, markers, clusters = 'cellType', samples = 'SubjectName', ct.scale = TRUE)
-        fit <- bseqsc_proportions(T.eset, B.eset, verbose = TRUE)
-        RESULTS = coef(fit)
-
-    } else if (method == "DWLS"){
-#         require(DWLS)
-        source('./DWLS.R')
-        path=paste(getwd(),"/DWLS_",STRING,sep="")
-       # basename(dataset)   ###Anna these lines used in debugging
-        #a<-sub('\\.rds$', '',basename(dataset) ) 
-                    
-        #path=paste(getwd(),"/DWLS_Sig_",a,sep="")
-                
-
-        if(! dir.exists(path)){ #to avoid repeating marker_selection step when removing cell types; Sig.RData automatically created
-
-            print(1)
-            dir.create(path)
-            Signature <- buildSignatureMatrixMAST(scdata = C, id = as.character(phenoDataC$cellType), path = path, diff.cutoff = 0.5, pval.cutoff = 0.01)
-#             Signature <- DWLS::buildSignatureMatrixMAST(scdata = C, id = as.character(phenoDataC$cellType), path = path, diff.cutoff = 0.5, pval.cutoff = 0.01)
-
-        } else {#re-load signature and remove CT column + its correspondent markers
-
-            load(paste(path,"Sig.RData",sep="/"))
-            Signature <- Sig
-            
-            if(!is.null(elem)){#to be able to deal with full C and with removed CT
-                
-                Signature = Signature[,!colnames(Signature) %in% elem]
-                CT_to_read <- dir(path) %>% grep(paste(elem,".*RData",sep=""),.,value=TRUE)
-                load(paste(path,CT_to_read,sep="/"))
-            
-                Signature <- Signature[!rownames(Signature) %in% cluster_lrTest.table$Gene,]
-
-            }
-            
-        }
-        RESULTS <- apply(T,2, function(x){
-            b = setNames(x, rownames(T))
-            tr <- trimData(Signature, b)
-            RES <- t(solveDampenedWLS(tr$sig, tr$bulk))
-#             tr <- DWLS::trimData(Signature, b)
-#             RES <- t(DWLS::solveDampenedWLS(tr$sig, tr$bulk))
-        })
-
-        rownames(RESULTS) <- as.character(unique(phenoDataC$cellType))
-        RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
-        RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
-
-    } else if (method == "BisqueRNA"){#By default, BisqueRNA uses all genes for decomposition. However, you may supply a list of genes (such as marker genes) to be used with the markers parameter
-
-        require(BisqueRNA)
-        RESULTS <- BisqueRNA::ReferenceBasedDecomposition(T.eset, C.eset, markers=NULL, use.overlap=FALSE)$bulk.props #use.overlap is when there's both bulk and scRNA-seq for the same set of samples
-
-    } else if (method == "deconvSeq"){
-      
-        singlecelldata = C.eset 
-        celltypes.sc = as.character(phenoDataC$cellType) #To avoid "Design matrix not of full rank" when removing 1 CT 
-        tissuedata = T.eset 
-
-        design.singlecell = model.matrix(~ -1 + as.factor(celltypes.sc))
-        colnames(design.singlecell) = levels(as.factor(celltypes.sc))
-        rownames(design.singlecell) = colnames(singlecelldata)
-
-        dge.singlecell = deconvSeq::getdge(singlecelldata,design.singlecell, ncpm.min = 1, nsamp.min = 4, method = "bin.loess")
-        b0.singlecell = deconvSeq::getb0.rnaseq(dge.singlecell, design.singlecell, ncpm.min =1, nsamp.min = 4)
-        dge.tissue = deconvSeq::getdge(tissuedata, NULL, ncpm.min = 1, nsamp.min = 4, method = "bin.loess")
-
-        RESULTS = t(deconvSeq::getx1.rnaseq(NB0 = "top_fdr",b0.singlecell, dge.tissue)$x1) #genes with adjusted p-values <0.05 after FDR correction
-
-    } else if (method == "SCDC"){ ##Proportion estimation with traditional deconvolution + >1 subject
-
-        require(SCDC)
-        RESULTS <- t(SCDC::SCDC_prop(bulk.eset = T.eset, sc.eset = C.eset, ct.varname = "cellType", sample = "SubjectName", ct.sub = unique(as.character(phenoDataC$cellType)), iter.max = 200)$prop.est.mvw)
-
+#        print("input of class ExpressionSet")
+        data = ad@assayData$exprs
+        pData = ad@phenoData@data
+               
+    } else {
+		print("the format of the input data is neither Seurat nor ExpressionSet")
     }
+    rownames(pData)<-NULL
 
-    RESULTS = RESULTS[gtools::mixedsort(rownames(RESULTS)),]
-    print(RESULTS)                    
-    RESULTS = data.table::melt(RESULTS)
-    print(RESULTS)                    
-	colnames(RESULTS) <-c("CT","tissue","observed_values")
+	original_cell_names = colnames(data)
+	colnames(data) <- as.character(pData$cellType[match(colnames(data),pData$cellID)])
+	cell_counts = table(colnames(data))
+	return(list('data'=data, 'pData'=pData, 'original_cell_names'=original_cell_names, 'cell_counts'=cell_counts))
+}
 
-	if(!is.null(P)){
+read_bulk<-function(dataset){
+	data = readRDS(dataset)
+	return(list('data'=data))
+}
 
-		P = P[gtools::mixedsort(rownames(P)),]
-		P$CT = rownames(P)
-		P = data.table::melt(P, id.vars="CT")
-		colnames(P) <-c("CT","tissue","expected_values")
-		RESULTS = merge(RESULTS,P)
-		RESULTS$expected_values <-round(RESULTS$expected_values,3)
-		RESULTS$observed_values <-round(RESULTS$observed_values,3)
-        print(RESULTS)
+QC<-function(X){
+	# filter features
+	keep <- which(Matrix::rowSums(data > 0) >= 3)
+	X$data = X$data[keep,]
+	# Keep CTs with >= 4 cells after QC
+	to_keep = names(X$cell_counts)[X$cell_counts >= 4]
+	X$pData <- X$pData[X$pData$cellType %in% to_keep,]
+	to_keep = which(colnames(X$data) %in% to_keep)   
+	X$data <- X$data[,to_keep]
+	X$original_cell_names <- X$original_cell_names[to_keep]
+	return(X)
+}
+
+ref_mat<-function(train){
+	cellType <- colnames(train)
+	group = list()
+	for(i in unique(cellType)){ 
+		group[[i]] <- which(cellType %in% i)
 	}
+	#C should be made with the mean (not sum) to agree with the way markers were selected
+	C = lapply(group,function(x) Matrix::rowMeans(train[,x]))
+	C = round(do.call(cbind.data.frame, C))
 
-    return(RESULTS) 
+	refProfiles.var = lapply(group,function(x) train[,x])
+#~ 	refProfiles.var = lapply(refProfiles.var, function(x) matrixStats::rowSds(Matrix::as.matrix(x)))
+	refProfiles.var = lapply(refProfiles.var, function(x) sparseMatrixStats::rowSds(x))
+	refProfiles.var = round(do.call(cbind.data.frame, refProfiles.var))
+	rownames(refProfiles.var) <- rownames(train)
+	return(list('C'=C, 'ref'=refProfiles.var))
+}
 
+# This function is used in the `marker_selection` function. 
+NormalizationTMM <- function(data){
+
+    data <- edgeR::DGEList(data)
+    CtrlGenes <- grep("ERCC-",rownames(data))
+
+    if(length(CtrlGenes)>1){
+
+        spikes <- data[CtrlGenes,]
+        spikes <- edgeR::calcNormFactors(spikes, method = "TMM") 
+        data$samples$norm.factors <- spikes$samples$norm.factors
+
+    } else {
+
+        data <- edgeR::calcNormFactors(data, method = "TMM")  
+
+    }
+
+    return(data)
+
+}
+
+marker.fc <- function(fit2, cont.matrix, log2.threshold = 1, output_name = "markers"){
+  
+	topTable_RESULTS = limma::topTable(fit2, coef = 1:ncol(cont.matrix), number = Inf, adjust.method = "BH", p.value = 0.05, lfc = log2.threshold)
+    
+    if(dim(topTable_RESULTS)[1]<1){
+        topTable_RESULTS = limma::topTable(fit2, coef = 1:ncol(cont.matrix), number = Inf, adjust.method = "BH", 
+                                       p.value = 0.05, lfc = 0.1)
+        log2.threshold = 0.1
+    }
+	AveExpr_pval <- topTable_RESULTS[,(ncol(topTable_RESULTS)-3):ncol(topTable_RESULTS)]
+	topTable_RESULTS <- topTable_RESULTS[,1:(ncol(topTable_RESULTS)-4)]
+	if(length(grep("ERCC-",topTable_RESULTS$gene)) > 0){ topTable_RESULTS <- topTable_RESULTS[-grep("ERCC-",topTable_RESULTS$gene),] }
+
+	markers <- apply(topTable_RESULTS,1,function(x){
+	temp = sort(x)
+	((temp[ncol(topTable_RESULTS)] - temp[ncol(topTable_RESULTS)-1]) >= log2.threshold) | (abs(temp[1] - temp[2]) >= log2.threshold)
+
+	})
+	topTable_RESULTS = topTable_RESULTS[markers,]
+	markers <- cbind.data.frame(rownames(topTable_RESULTS),
+	                                   t(apply(topTable_RESULTS, 1, function(x){
+	                                     temp = max(x)
+	                                     if(temp < log2.threshold){
+	                                       temp = c(min(x),colnames(topTable_RESULTS)[which.min(x)])
+	                                     } else {
+	                                       temp = c(max(x),colnames(topTable_RESULTS)[which.max(x)])
+	                                     } 
+	                                     temp
+	                                   })))
+	colnames(markers) <- c("gene","log2FC","CT")
+	markers$log2FC = as.numeric(as.character(markers$log2FC))
+	markers <- markers %>% dplyr::arrange(CT,desc(log2FC)) 
+	markers$AveExpr <- AveExpr_pval$AveExpr[match(markers$gene,rownames(AveExpr_pval))]
+	markers$gene <- as.character(markers$gene)
+	markers$CT <- as.character(markers$CT)
+
+	#write.table(markers, file = output_name, row.names = FALSE, col.names = TRUE, sep = "\t", quote = FALSE)
+
+	return(markers)
+  
+}
+
+marker_strategies <- function(marker_distrib, marker_strategy, C){
+
+    set.seed(4)
+
+    if(marker_strategy == "all"){
+        
+        #using all markers that were found
+        markers = marker_distrib
+
+    } else if (marker_strategy == "pos_fc"){
+
+        # using only markers with positive FC (=over-expressed in cell type of interest)
+        markers = marker_distrib %>% dplyr::filter(log2FC > 0) %>% as.data.frame()
+
+    } else if (marker_strategy == "top_50p_logFC"){
+
+        # top 50% of markers (per CT) based on logFC
+        markers = marker_distrib %>% dplyr::filter(log2FC > 0) %>% dplyr::arrange(CT, desc(log2FC)) %>% group_by(CT) %>% dplyr::top_n(ceiling(n()*0.5), wt=log2FC) %>% as.data.frame()
+
+    } else if (marker_strategy == "bottom_50p_logFC"){
+
+        # bottom 50% of markers based on logFC
+        markers = marker_distrib %>% dplyr::filter(log2FC > 0) %>% dplyr::arrange(CT, desc(log2FC)) %>% group_by(CT) %>% dplyr::top_n(floor(n()*-0.5), wt=log2FC) %>% as.data.frame()
+
+    } else if (marker_strategy == "top_50p_AveExpr"){
+
+        # top 50% of markers based on average gene expression (baseline expression)
+        markers = marker_distrib %>% dplyr::filter(log2FC > 0) %>% dplyr::arrange(CT, desc(AveExpr)) %>% group_by(CT) %>% dplyr::top_n(ceiling(n()*0.5), wt=log2FC) %>% as.data.frame()
+
+    } else if (marker_strategy == "bottom_50p_AveExpr"){
+
+        # low 50% based on average gene expression.
+        markers = marker_distrib %>% dplyr::filter(log2FC > 0) %>% dplyr::arrange(CT, desc(AveExpr)) %>% group_by(CT) %>% dplyr::top_n(floor(n()*-0.5), wt=log2FC) %>% as.data.frame()
+
+    } else if (marker_strategy == "top_n2"){
+
+        # using the top 2 genes/CT with highest log2FC
+        markers = marker_distrib %>% dplyr::filter(log2FC > 0) %>% dplyr::arrange(CT, desc(log2FC)) %>% group_by(CT) %>% dplyr::top_n(2, wt=log2FC) %>% as.data.frame()
+    
+    } else if (marker_strategy == "random5"){
+
+        # using 5 random markers for each different cell types
+        markers = marker_distrib[1:(ncol(C)*5),]
+        markers$CT = rep(colnames(C),5) #labelling purposes: important for semi-supervised
+        markers$gene = sample(rownames(C), nrow(markers), replace = FALSE)
+
+    }
+
+    return(markers) 
+
+}
+
+marker_selection<-function(train){
+	#-------------------------------------------------------
+	#Normalization of "train" followed by marker selection 
+	#for marker selection, keep genes where at least 30% of cells within a cell type have a read/UMI count different from 0
+	cellType = colnames(train) 
+	keep <- sapply(unique(cellType), function(x) {
+		CT_hits = which(cellType %in% x)
+		size = ceiling(0.3*length(CT_hits))
+		Matrix::rowSums(train[,CT_hits,drop=FALSE] != 0) >= size
+	})
+	train = train[Matrix::rowSums(keep) > 0,]
+	train2 = NormalizationTMM(train)
+
+	# INITIAL CONTRASTS for marker selection WITHOUT taking correlated CT into account 
+	#[compare one group with average expression of all other groups]
+	annotation = factor(colnames(train2))
+	design <- model.matrix(~0+annotation)
+	colnames(design) <- unlist(lapply(strsplit(colnames(design),"annotation"), function(x) x[2]))
+	cont.matrix <- matrix((-1/ncol(design)),nrow=ncol(design),ncol=ncol(design))
+	colnames(cont.matrix) <- colnames(design)
+	diag(cont.matrix) <- (ncol(design)-1)/ncol(design)
+
+	v <- limma::voom(train2, design=design, plot=FALSE) 
+	fit <- limma::lmFit(v, design)
+	fit2 <- limma::contrasts.fit(fit, cont.matrix)
+	fit2 <- limma::eBayes(fit2, trend=TRUE)
+	markers = marker.fc(fit2, cont.matrix=cont.matrix, log2.threshold = log2(2))
+	return(markers)
+}
+
+prepare_train<-function(train, train_cell_names){
+	# Generate phenodata for reference matrix C
+	train_cellID = train
+	colnames(train_cellID) = train_cell_names
+	# reference matrix (C) + refProfiles.var from TRAINING dataset
+	cellType <- colnames(train)
+	group = list()
+	for(i in unique(cellType)){ 
+		group[[i]] <- which(cellType %in% i)
+	}
+	#C should be made with the mean (not sum) to agree with the way markers were selected
+	C = lapply(group,function(x) Matrix::rowMeans(train[,x])) 
+	C = round(do.call(cbind.data.frame, C))
+
+	refProfiles.var = lapply(group,function(x) train[,x])
+# 	refProfiles.var = lapply(refProfiles.var, function(x) matrixStats::rowSds(Matrix::as.matrix(x)))
+    refProfiles.var = lapply(refProfiles.var, function(x) sparseMatrixStats::rowSds(x))   
+	refProfiles.var = round(do.call(cbind.data.frame, refProfiles.var))
+	rownames(refProfiles.var) <- rownames(train)
+
+	markers = marker_selection(train)
+	return(list('train_cellID'=train_cellID, 'C'=C, 'ref' = refProfiles.var, 'markers'=markers))
 }

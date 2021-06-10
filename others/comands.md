@@ -62,6 +62,7 @@ usethis::use_r(
 
 devtools::document()
 
+#' @title
 #' 
 #' @description
 #' 
