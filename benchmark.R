@@ -115,8 +115,11 @@ Transformation <- function(matrix, option){
         matrix = sqrt(matrix)
 
     }else if(option=="vst"){
+		
+		#DEBUG# This function does not work for sparse matrix and may cause memory issue. 
         
         matrix = DESeq2::varianceStabilizingTransformation(as.matrix(matrix))
+#         matrix = DESeq2::varianceStabilizingTransformation(matrix)
 
     }
 
@@ -150,8 +153,11 @@ Scaling <- function(matrix, option, phenoDataC=NULL){
         matrix = scale(matrix, center = TRUE, scale = TRUE)
 
     } else if(option=="global_z-score"){
+		
+		#DEBUG# global_z-score desifies sparseMatrix and may cause memory issue.
         
-        matrix = (matrix - mean(as.matrix(matrix))) / sd(as.matrix(matrix))
+#         matrix = (matrix - mean(as.matrix(matrix))) / sd(as.matrix(matrix))
+        matrix = (matrix - mean(matrix)) / sd(matrix)
 
     } else if(option=="column_min-max"){
         
@@ -162,11 +168,15 @@ Scaling <- function(matrix, option, phenoDataC=NULL){
         matrix = (matrix - min(matrix))/(max(matrix) - min(matrix))
 
     } else if (option=="LogNormalize"){
+		
+		#DEBUG# Seurat::LogNormalize desifies sparseMatrix and may cause memory issue.
         
         #matrix = as.matrix(expm1(Seurat::LogNormalize(matrix, display.progress = FALSE))) #for v2.1
         matrix = as.matrix(expm1(Seurat::LogNormalize(matrix, verbose = FALSE))) #for v3
 
     } else if (option=="QN"){
+		
+		#DEBUG# QN requires matrix format input and may cause memory issue.
 
         matrix_rownames <- rownames(matrix); matrix_colnames <- colnames(matrix)
 
@@ -281,30 +291,37 @@ Scaling <- function(matrix, option, phenoDataC=NULL){
     } else if (option=="SCTransform"){# SCTransform = RNBR
 
         #Model formula is y ~ log_umi
-        
         ##following line needed to solve "Wrong R type for mapped matrix"
         #https://github.com/ChristophH/sctransform/issues/24
         matrix = as(matrix, "dgCMatrix")
-        matrix = sctransform::vst(matrix, return_corrected_umi=TRUE, show_progress = FALSE)$umi_corrected
-        matrix = as(matrix, "matrix")
+#         matrix = sctransform::vst(matrix, return_corrected_umi=TRUE, show_progress = FALSE)$umi_corrected
+        matrix = sctransform::vst(matrix, return_corrected_umi=TRUE, verbosity = FALSE)$umi_corrected
+#         matrix = as(matrix, "matrix")
 
     } else if (option=="scran"){
         
-        sf = scran::computeSumFactors(as.matrix(matrix), clusters=NULL) 
-        sce = SingleCellExperiment::SingleCellExperiment(assays = list(counts=as.matrix(matrix)))
-        sizeFactors(sce) <- sf
-
-        sce = scater::normalize(sce,exprs_values = "counts", return_log = FALSE) 
-        matrix = normcounts(sce)
+#         sf = scran::computeSumFactors(as.matrix(matrix), clusters=NULL) 
+#         sce = SingleCellExperiment::SingleCellExperiment(assays = list(counts=as.matrix(matrix)))
+#         sizeFactors(sce) <-sf
+#         sce = scater::normalize(sce,exprs_values = "counts", return_log = FALSE) 
+#         matrix = normcounts(sce)
+        sce = SingleCellExperiment::SingleCellExperiment(assays = list(counts=matrix))
+        sce <- scran::computeSumFactors(sce, clusters=NULL) 
+		sce <- scater::logNormCounts(sce, log=FALSE)
+		matrix = sce@assays@data$normcounts
         
     } else if (option=="scater"){  
 
         size_factors = scater::librarySizeFactors(matrix)
-        matrix <- scater::normalizeCounts(as.matrix(matrix), size_factors = size_factors, return_log = FALSE)
+#         matrix <- scater::normalizeCounts(as.matrix(matrix), size_factors = size_factors, return_log = FALSE)
+        matrix <- scater::normalizeCounts(matrix, size_factors = size_factors)
 
-    } else if (option=="Linnorm"){#It is not compatible with log transformed datasets. 
+    } else if (option=="Linnorm"){
+		#DEBUG# 1. It is not compatible with log transformed datasets. 
+		#DEBUG# 2. Linnorm will densify the matrix and may cause memory issue.
 
-        matrix = expm1(Linnorm::Linnorm(as.matrix(matrix))) #Main function contains log1p(datamatrix)
+#         matrix = expm1(Linnorm::Linnorm(as.matrix(matrix))) #Main function contains log1p(datamatrix)
+		matrix = expm1(Linnorm::Linnorm(matrix))
 
     }
 
@@ -366,7 +383,7 @@ ref_mat<-function(train){
 	C = round(do.call(cbind.data.frame, C))
 
 	refProfiles.var = lapply(group,function(x) train[,x])
-#~ 	refProfiles.var = lapply(refProfiles.var, function(x) matrixStats::rowSds(Matrix::as.matrix(x)))
+# 	refProfiles.var = lapply(refProfiles.var, function(x) matrixStats::rowSds(Matrix::as.matrix(x)))
 	refProfiles.var = lapply(refProfiles.var, function(x) sparseMatrixStats::rowSds(x))
 	refProfiles.var = round(do.call(cbind.data.frame, refProfiles.var))
 	rownames(refProfiles.var) <- rownames(train)

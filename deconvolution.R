@@ -85,7 +85,10 @@ run_CAMmarker<-function(T, C, marker_distrib, ...){
 	return(RESULTS)
 }
 run_CDSeq<-function(T, C, marker_distrib, ...){
-	RESULTS<-CDSeq::CDSeq(bulk_data = T, reference_gep = C, cell_type_number = length(unique(marker_distrib$CT)))$estProp
+# 	RESULTS<-CDSeq::CDSeq(bulk_data = T, reference_gep = C, cell_type_number = length(unique(marker_distrib$CT)))$estProp
+	
+	RESULTS<-CDSeq::CDSeq(bulk_data = T, reference_gep = C, cell_type_number = length(unique(marker_distrib$CT)), mcmc_iterations = 1000,
+                                  cpu_number=10,block_number=6,gene_subset_size=15)$estProp
 	return(RESULTS)
 }
 run_CIBERSORT<-function(T, C, ...){
@@ -139,6 +142,8 @@ run_DeconRNASeq<-function(T, C, ...){
 }
 
 run_EPIC<-function(T, C, marker_distrib, refProfiles.var, ...){
+	
+	#DEBUG# EPIC requires dense matrix input, can cause memory issue.
 
 	require(EPIC)
 	marker_distrib = marker_distrib[marker_distrib$gene %in% rownames(C),]
@@ -176,6 +181,8 @@ run_FARDEEP<-function(T, C, ...){
 }
 
 run_OLS<-function(T, C, ...){
+	# OLS = ordinary least squares
+	
 	RESULTS = apply(T,2,function(x) lm(x ~ as.matrix(C))$coefficients[-1])
 	rownames(RESULTS) <- unlist(lapply(strsplit(rownames(RESULTS),")"),function(x) x[2]))
 	RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
@@ -184,7 +191,7 @@ run_OLS<-function(T, C, ...){
 }
 
 run_RLR<-function(T, C, ...){
-	#RLR = robust linear regression
+	# RLR = robust linear regression
 	require(MASS)
 	RESULTS = do.call(cbind.data.frame,lapply(apply(T,2,function(x) MASS::rlm(x ~ as.matrix(C), maxit=100)), function(y) y$coefficients[-1]))
 	rownames(RESULTS) <- unlist(lapply(strsplit(rownames(RESULTS),")"),function(x) x[2]))
@@ -323,6 +330,9 @@ run_ssKL<-function(T, C, marker_distrib, ...){
 # Single-cell Methods
 run_BisqueRNA<-function(T, C, T.eset, C.eset, ...){
 	#By default, BisqueRNA uses all genes for decomposition. However, you may supply a list of genes (such as marker genes) to be used with the markers parameter
+	
+	#DEBUG# BisqueRNA requires ExpressionSet format input, which requires dense matrix. Thus, may cause memory issue. 
+	
 	require(BisqueRNA)
 	RESULTS <- BisqueRNA::ReferenceBasedDecomposition(T.eset, 
 													  C.eset, 
@@ -347,6 +357,9 @@ run_CPM<-function(T, C, phenoDataC, ...){
 }
 
 run_MuSiC<-function(T, C, T.eset, C.eset, ...){
+	
+	#DEBUG# MuSiC requires ExpressionSet format input, which requires dense matrix. Thus, may cause memory issue. 
+	
 	require(MuSiC)
 	RESULTS = t(MuSiC::music_prop(bulk.eset = T.eset, sc.eset = C.eset, clusters = 'cellType',
 										markers = NULL, normalize = FALSE, samples = 'SubjectName', 
@@ -395,7 +408,9 @@ run_DWLS<-function(T, C, phenoDataC, STRING, elem, ...){
 # 		}
 		
 # 	}
-	Signature <- buildSignatureMatrixMAST(scdata = C, id = as.character(phenoDataC$cellType), path = path, diff.cutoff = 0.5, pval.cutoff = 0.01)
+# 	Signature <- buildSignatureMatrixMAST(scdata = C, id = as.character(phenoDataC$cellType), path = path, diff.cutoff = 0.5, pval.cutoff = 0.01)
+	Signature <- buildSignatureMatrixMAST(scdata = C, id = phenoDataC[,"cellType"], path = path, diff.cutoff = 0.5, pval.cutoff = 0.01)
+	
 	RESULTS <- apply(T,2, function(x){
 		b = setNames(x, rownames(T))
 		tr <- trimData(Signature, b)

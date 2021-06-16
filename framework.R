@@ -3,6 +3,24 @@
 source('benchmark.R')
 source('deconvolution.R')
 
+prepare_data<-function(dataset, number_cells = 10000){
+
+	### Read single cell data and metadata
+	X = read_data(dataset)
+	training <- as.numeric(unlist(sapply(unique(colnames(X$data)), function(x) {
+				sample(which(colnames(X$data) %in% x), X$cell_counts[x]/2) })))
+	testing <- which(!1:ncol(X$data) %in% training)
+	Xtrain = prepare_train(X$data[,training], X$original_cell_names[training])
+	pDataC = X$pData[training,]
+	test <- X$data[,testing]
+	colnames(test) <- X$original_cell_names[testing]
+	Xtest <- Generator(sce = test, phenoData = X$pData[testing,], sampleCT = FALSE, propsample = TRUE, Num.mixtures = 1000, pool.size = number_cells)
+	# P <- Xtest$P
+
+	return(list('Xtest':Xtest, 'Xtrain':Xtrain, 'pDataC':pDataC))
+}
+
+
 #' @title Framework
 #' 
 #' @description

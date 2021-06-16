@@ -33,7 +33,12 @@ if(args[1]=='s'){
 	RESULTS = cross_reference(args[2:length(args)])
 }else if(args[1]=='b'){
 	RESULTS = bulk_2references(args[2:length(args)])
+}else if(args[1] == 'p'){
+	prepare_data(dataset, number_cells = 10000)
+	
+	exit(0)
 }
+
 name = get_name(args)
 saveRDS(RESULTS, paste0("RDS/",name,"rds"))
 
