@@ -112,7 +112,7 @@ run_DCQ<-function(T, C, ...){
 
 run_DSA<-function(T, C, marker_distrib, ...){
 	#DSA algorithm assumes that the input mixed data are in linear scale; If log = FALSE the data is left unchanged
-
+	
 	require(CellMix)
 
 	ML = CellMix::MarkerList()
@@ -125,7 +125,7 @@ run_DSA<-function(T, C, marker_distrib, ...){
 
 run_DeconRNASeq<-function(T, C, ...){
 	#nonnegative quadratic programming; lsei function (default: type=1, meaning lsei from quadprog)
-	#datasets and reference matrix: signatures, need to be non-negative. 
+	#datasets and reference matrix: signatures, need to be non-negative, normalizations such as global-z score and z-score norm don't work as they produce negative values
 	#"use.scale": whether the data should be centered or scaled, default = TRUE
 	unloadNamespace("Seurat") #needed for PCA step
 	library(pcaMethods) #needed for DeconRNASeq to work
@@ -160,11 +160,11 @@ run_EPIC<-function(T, C, marker_distrib, refProfiles.var, ...){
 
 	RESULTS = RESULTS[!rownames(RESULTS) %in% "otherCells",]
 	RESULTS[is.na(RESULTS)] <- 0
-	return(RESULTS)
+	return(RESULTS) ###sometime RESULTS have constant values which results in NA Pearson's correlation
 }
 
-run_EpiDISH<-function(T, C, ...){
-	#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default
+run_EpiDISH<-function(T, C, ...){# RLR
+	#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default  ###Collinearity problem, highly correlated rows in the matrix will make the algorithm fail
 
 	require(EpiDISH)
 	RESULTS = t(EpiDISH::epidish(beta.m = T, ref.m = C, method = "RPC")$estF)
@@ -173,7 +173,8 @@ run_EpiDISH<-function(T, C, ...){
 	return(RESULTS)
 }
 
-run_FARDEEP<-function(T, C, ...){
+run_FARDEEP<-function(T, C, ...){ ## regression
+	##QN is the default norm but with QN=FALSE we can test more norm methods, other parameters(nn,intercept remain default)
 	require(FARDEEP)
 	RESULTS = t(FARDEEP::fardeep(C, T, nn = TRUE, intercept = TRUE, permn = 10, QN = FALSE)$abs.beta)
 	RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
@@ -185,12 +186,13 @@ run_OLS<-function(T, C, ...){
 	
 	RESULTS = apply(T,2,function(x) lm(x ~ as.matrix(C))$coefficients[-1])
 	rownames(RESULTS) <- unlist(lapply(strsplit(rownames(RESULTS),")"),function(x) x[2]))
+	RESULTS[is.na(RESULTS)] <- 0       ### convert NA's to zeros    
 	RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
 	RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
     return(RESULTS)
 }
 
-run_RLR<-function(T, C, ...){
+run_RLR<-function(T, C, ...){ 
 	# RLR = robust linear regression
 	require(MASS)
 	RESULTS = do.call(cbind.data.frame,lapply(apply(T,2,function(x) MASS::rlm(x ~ as.matrix(C), maxit=100)), function(y) y$coefficients[-1]))
@@ -200,7 +202,7 @@ run_RLR<-function(T, C, ...){
 	return(RESULTS)
 }
 
-run_deconf<-function(T, C, marker_distrib, ...){
+run_deconf<-function(T, C, marker_distrib, ...){ unsupervised-nnmf
 
 	##source("deconf.R")
 
@@ -208,12 +210,14 @@ run_deconf<-function(T, C, marker_distrib, ...){
 	#Full version, irrespective of C
 	ML = CellMix::MarkerList()
 	ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
-	RESULTS <- CellMix::ged(as.matrix(T), ML, method = "deconf", maxIter = 500)@fit@H #equivalent to coef(CellMix::ged(T,...)
+	#RESULTS <- CellMix::ged(as.matrix(T), ML, method = "deconf", maxIter = 500)@fit@H #equivalent to coef(CellMix::ged(T,...)
+	res <- CellMix::ged(T, x=length(unique(as.character(marker_distrib$CT))), method = "deconf", maxIter = 500, verbose= TRUE) # x = number of cell types.  compute proportions
+    RESULTS<- match.nmf(res, ML)@fit@H          ####annotate cell types 
 	return(RESULTS)
 }
 
 run_dtangle<-function(T, C, marker_distrib, ...){
-	#Only works if T & C are log-transformed
+	#Only works if T & C are log-transformed, dtangle assumes input data are log-trans
 
 	require(dtangle)
 	mixture_samples = t(T)
@@ -228,7 +232,7 @@ run_dtangle<-function(T, C, marker_distrib, ...){
 	return(RESULTS)
 }
 
-run_elasticNet<-function(T, C, ...){
+run_elasticNet<-function(T, C, ...){#penalised regression
 	#standardize = TRUE by default. lambda=NULL by default 
 
 	require(glmnet)# gaussian is the default family option in the function glmnet. https://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html
@@ -239,7 +243,7 @@ run_elasticNet<-function(T, C, ...){
 	return(RESULTS)
 }
 
-run_lasso<-function(T, C, ...){ 
+run_lasso<-function(T, C, ...){ #penalised regression
 	#alpha=1; shrinking some coefficients to 0. 
 
 	require(glmnet)
@@ -251,7 +255,7 @@ run_lasso<-function(T, C, ...){
 	return(RESULTS)
 }
 
-run_ridge<-function(T, C, ...){
+run_ridge<-function(T, C, ...){ #penalised regression
 	#alpha=0
 
 	require(glmnet)
@@ -262,7 +266,7 @@ run_ridge<-function(T, C, ...){
 	return(RESULTS)
 }
 
-run_nnls<-function(T, C, ...){
+run_nnls<-function(T, C, ...){ #basic statistical nnls
 	require(nnls)
 	RESULTS = do.call(cbind.data.frame,lapply(apply(T,2,function(x) nnls::nnls(as.matrix(C),x)), function(y) y$x))
 	rownames(RESULTS) <- colnames(C)
@@ -272,10 +276,11 @@ run_nnls<-function(T, C, ...){
 
 run_proportionsInAdmixture<-function(T, C, ...){
 	#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default
-
+	#DEBUG dimnames(datE.Admixture)[[2]]=GeneSymbols  this error occurs if the gene names are not normalized: make sure rownames(C),rownames(T) do not contain dashes,symbols. Preferably use GENE NAME e.g : TNFA or ensemble id
 	require(ADAPTS)
 	RESULTS = ADAPTS::estCellPercent(refExpr = C, geneExpr = T, method="proportionsInAdmixture")
 	RESULTS[is.na(RESULTS)] <- 0  ####Anna## convert NAs to zeros so you can apply sum to one constraint
+	RESULTS <- RESULTS[-nrow(RESULTS),]  ###remove cell type "other" that proportionInadmixture generates
 	RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
 	RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
 	return(RESULTS)
@@ -302,24 +307,30 @@ run_proportionsInAdmixture<-function(T, C, ...){
 # 	return(RESULTS)
 # }
 
-run_ssFrobenius<-function(T, C, marker_distrib, ...){
+run_ssFrobenius<-function(T, C, marker_distrib, ...){#semi-supervised NNMF
 
 	require(CellMix) # require NMF 0.23.0, but NMF 0.30.1 does not work.
 	md = marker_distrib #Full version, irrespective of C
 	ML = CellMix::MarkerList()
 	ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
 	RESULTS <- CellMix::ged(as.matrix(T), ML, method = "ssFrobenius", sscale = TRUE, maxIter = 500, log = FALSE)@fit@H #equivalent to coef(CellMix::ged(T,...)
-	print(2)
+	#print(2)
 	return(RESULTS)
 }
 
-run_ssKL<-function(T, C, marker_distrib, ...){ 
+run_ssKL<-function(T, C, marker_distrib, ...){ #semi-supervised NNMF
 
 	require(CellMix)
 	md = marker_distrib #Full version, irrespective of C
 	ML = CellMix::MarkerList()
 	ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
-	RESULTS <- CellMix::ged(as.matrix(T), ML, method = "ssKL", sscale = FALSE, maxIter=500, log = FALSE)@fit@H 
+	#RESULTS <- CellMix::ged(as.matrix(T), ML, method = "ssKL", sscale = FALSE, maxIter=500, log = FALSE)@fit@H 
+	res <- CellMix::ged(as.matrix(T), x=length(unique(as.character(marker_distrib$CT))),
+														method = "ssKL",markers= "semi", 
+														sscale = FALSE, maxIter=500, 
+														log = FALSE, 
+														verbose= TRUE)  ##Anna x=number of cell types , estimate proportions 
+    RESULTS<- match.nmf(res, ML)@fit@H  ###annotate cell types
 	return(RESULTS)
 }
 
@@ -425,7 +436,8 @@ run_DWLS<-function(T, C, phenoDataC, STRING, elem, ...){
 	return(RESULTS)
 }
 
-run_deconvSeq<-function(T, C, T.eset, C.eset, phenoDataC, ...){
+run_deconvSeq<-function(T, C, T.eset, C.eset, phenoDataC, ...){ ### linear and un-normalizes data only accepted (trans=none,norm=none)
+	#the method applies a TMM internal norm
       
 	singlecelldata = C.eset 
 	celltypes.sc = as.character(phenoDataC$cellType) #To avoid "Design matrix not of full rank" when removing 1 CT 
