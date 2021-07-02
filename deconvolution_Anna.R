@@ -1,6 +1,6 @@
 # This file includes functions in the benchmarking process. 
 # TODO: "LinSeed"
-# TODO: document the functions
+# TODO: document the functions(roxygen2)
 
 require(Biobase)
 
