@@ -86,7 +86,7 @@ run_CAMmarker<-function(T, C, marker_distrib, ...){
 }
 run_CDSeq<-function(T, C, marker_distrib, ...){
 # 	RESULTS<-CDSeq::CDSeq(bulk_data = T, reference_gep = C, cell_type_number = length(unique(marker_distrib$CT)))$estProp
-	
+	##Anna unsupervised ( C used a posteriori)
 	RESULTS<-CDSeq::CDSeq(bulk_data = T, reference_gep = C, cell_type_number = length(unique(marker_distrib$CT)), mcmc_iterations = 1000,
                                   cpu_number=10,block_number=6,gene_subset_size=15)$estProp
 	return(RESULTS)
@@ -160,7 +160,7 @@ run_EPIC<-function(T, C, marker_distrib, refProfiles.var, ...){
 
 	RESULTS = RESULTS[!rownames(RESULTS) %in% "otherCells",]
 	RESULTS[is.na(RESULTS)] <- 0
-	return(RESULTS) ###sometime RESULTS have constant values which results in NA Pearson's correlation
+	return(RESULTS) ###Anna sometime RESULTS have constant values which results in NA Pearson's correlation
 }
 
 run_EpiDISH<-function(T, C, ...){# RLR
@@ -174,7 +174,7 @@ run_EpiDISH<-function(T, C, ...){# RLR
 }
 
 run_FARDEEP<-function(T, C, ...){ ## regression
-	##QN is the default norm but with QN=FALSE we can test more norm methods, other parameters(nn,intercept remain default)
+	##Anna QN is the default norm but with QN=FALSE we can test more norm methods, other parameters(nn,intercept remain default)
 	require(FARDEEP)
 	RESULTS = t(FARDEEP::fardeep(C, T, nn = TRUE, intercept = TRUE, permn = 10, QN = FALSE)$abs.beta)
 	RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
@@ -186,7 +186,7 @@ run_OLS<-function(T, C, ...){
 	
 	RESULTS = apply(T,2,function(x) lm(x ~ as.matrix(C))$coefficients[-1])
 	rownames(RESULTS) <- unlist(lapply(strsplit(rownames(RESULTS),")"),function(x) x[2]))
-	RESULTS[is.na(RESULTS)] <- 0       ### convert NA's to zeros    
+	RESULTS[is.na(RESULTS)] <- 0       ### Anna convert NA's to zeros prior to applying constraints
 	RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
 	RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
     return(RESULTS)
@@ -211,13 +211,13 @@ run_deconf<-function(T, C, marker_distrib, ...){ unsupervised-nnmf
 	ML = CellMix::MarkerList()
 	ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
 	#RESULTS <- CellMix::ged(as.matrix(T), ML, method = "deconf", maxIter = 500)@fit@H #equivalent to coef(CellMix::ged(T,...)
-	res <- CellMix::ged(T, x=length(unique(as.character(marker_distrib$CT))), method = "deconf", maxIter = 500, verbose= TRUE) # x = number of cell types.  compute proportions
-    RESULTS<- match.nmf(res, ML)@fit@H          ####annotate cell types 
+	res <- CellMix::ged(T, x=length(unique(as.character(marker_distrib$CT))), method = "deconf", maxIter = 500, verbose= TRUE) #Anna x = number of cell types.  compute proportions
+    RESULTS<- match.nmf(res, ML)@fit@H #Anna    ####annotate cell types 
 	return(RESULTS)
 }
 
 run_dtangle<-function(T, C, marker_distrib, ...){
-	#Only works if T & C are log-transformed, dtangle assumes input data are log-trans
+	#Only works if T & C are log-transformed,#Anna dtangle assumes input data are log-transformed ( trans=log parameter)
 
 	require(dtangle)
 	mixture_samples = t(T)
@@ -232,7 +232,7 @@ run_dtangle<-function(T, C, marker_distrib, ...){
 	return(RESULTS)
 }
 
-run_elasticNet<-function(T, C, ...){#penalised regression
+run_elasticNet<-function(T, C, ...){#Anna penalised regression
 	#standardize = TRUE by default. lambda=NULL by default 
 
 	require(glmnet)# gaussian is the default family option in the function glmnet. https://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html
@@ -243,7 +243,7 @@ run_elasticNet<-function(T, C, ...){#penalised regression
 	return(RESULTS)
 }
 
-run_lasso<-function(T, C, ...){ #penalised regression
+run_lasso<-function(T, C, ...){ #Anna penalised regression
 	#alpha=1; shrinking some coefficients to 0. 
 
 	require(glmnet)
@@ -255,7 +255,7 @@ run_lasso<-function(T, C, ...){ #penalised regression
 	return(RESULTS)
 }
 
-run_ridge<-function(T, C, ...){ #penalised regression
+run_ridge<-function(T, C, ...){ #Anna penalised regression
 	#alpha=0
 
 	require(glmnet)
@@ -266,11 +266,11 @@ run_ridge<-function(T, C, ...){ #penalised regression
 	return(RESULTS)
 }
 
-run_nnls<-function(T, C, ...){ #basic statistical nnls
+run_nnls<-function(T, C, ...){ #Anna basic statistical nnls
 	require(nnls)
 	RESULTS = do.call(cbind.data.frame,lapply(apply(T,2,function(x) nnls::nnls(as.matrix(C),x)), function(y) y$x))
 	rownames(RESULTS) <- colnames(C)
-	RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
+	RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint 
 	return(RESULTS)
 }
 
@@ -280,7 +280,7 @@ run_proportionsInAdmixture<-function(T, C, ...){
 	require(ADAPTS)
 	RESULTS = ADAPTS::estCellPercent(refExpr = C, geneExpr = T, method="proportionsInAdmixture")
 	RESULTS[is.na(RESULTS)] <- 0  ####Anna## convert NAs to zeros so you can apply sum to one constraint
-	RESULTS <- RESULTS[-nrow(RESULTS),]  ###remove cell type "other" that proportionInadmixture generates
+	RESULTS <- RESULTS[-nrow(RESULTS),]  ###Anna remove cell type "other" that proportionInadmixture generates
 	RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
 	RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
 	return(RESULTS)
@@ -307,7 +307,7 @@ run_proportionsInAdmixture<-function(T, C, ...){
 # 	return(RESULTS)
 # }
 
-run_ssFrobenius<-function(T, C, marker_distrib, ...){#semi-supervised NNMF
+run_ssFrobenius<-function(T, C, marker_distrib, ...){#Anna semi-supervised NNMF
 
 	require(CellMix) # require NMF 0.23.0, but NMF 0.30.1 does not work.
 	md = marker_distrib #Full version, irrespective of C
@@ -318,7 +318,7 @@ run_ssFrobenius<-function(T, C, marker_distrib, ...){#semi-supervised NNMF
 	return(RESULTS)
 }
 
-run_ssKL<-function(T, C, marker_distrib, ...){ #semi-supervised NNMF
+run_ssKL<-function(T, C, marker_distrib, ...){ #Anna semi-supervised NNMF
 
 	require(CellMix)
 	md = marker_distrib #Full version, irrespective of C
@@ -330,7 +330,7 @@ run_ssKL<-function(T, C, marker_distrib, ...){ #semi-supervised NNMF
 														sscale = FALSE, maxIter=500, 
 														log = FALSE, 
 														verbose= TRUE)  ##Anna x=number of cell types , estimate proportions 
-    RESULTS<- match.nmf(res, ML)@fit@H  ###annotate cell types
+    RESULTS<- match.nmf(res, ML)@fit@H  ###Anna annotate cell types
 	return(RESULTS)
 }
 
@@ -341,7 +341,7 @@ run_ssKL<-function(T, C, marker_distrib, ...){ #semi-supervised NNMF
 # Single-cell Methods
 run_BisqueRNA<-function(T, C, T.eset, C.eset, ...){
 	#By default, BisqueRNA uses all genes for decomposition. However, you may supply a list of genes (such as marker genes) to be used with the markers parameter
-	
+	# Anna multisubject method, needs more that one individual in the reference C
 	#DEBUG# BisqueRNA requires ExpressionSet format input, which requires dense matrix. Thus, may cause memory issue. 
 	
 	require(BisqueRNA)
@@ -352,7 +352,7 @@ run_BisqueRNA<-function(T, C, T.eset, C.eset, ...){
 	return(RESULTS)
 }
 
-run_CPM<-function(T, C, phenoDataC, ...){
+run_CPM<-function(T, C, phenoDataC, ...){# not focused on deconvolution but estimated prop if quantifyType=TRUE, for big datasets it takes ~week
 	#default: alpha = 0.05, lambda = 0.2. glmnet with standardize = TRUE by default
 
 	require(scBio)
@@ -370,14 +370,15 @@ run_CPM<-function(T, C, phenoDataC, ...){
 run_MuSiC<-function(T, C, T.eset, C.eset, ...){
 	
 	#DEBUG# MuSiC requires ExpressionSet format input, which requires dense matrix. Thus, may cause memory issue. 
-	
+	# multisubject method, needs more that one individual in the reference C
 	require(MuSiC)
 	RESULTS = t(MuSiC::music_prop(bulk.eset = T.eset, sc.eset = C.eset, clusters = 'cellType',
 										markers = NULL, normalize = FALSE, samples = 'SubjectName', 
 										verbose = F)$Est.prop.weighted)
 	return(RESULTS)
 }
-run_bseqsc<-function(T, C, T.eset, C.eset, ...){
+run_bseqsc<-function(T, C, T.eset, C.eset, ...){ #Anna# can pass the TIME_LIMIT in the cluster -> gets killed
+    #relies on CIBERSORT
 
 	require(bseqsc)
 	bseqsc_config('CIBERSORT.R')
@@ -392,7 +393,7 @@ run_bseqsc<-function(T, C, T.eset, C.eset, ...){
 	RESULTS = coef(fit)
 	return(RESULTS)
 }
-run_DWLS<-function(T, C, phenoDataC, STRING, elem, ...){
+run_DWLS<-function(T, C, phenoDataC, STRING, elem, ...){#Anna Signature (internal marker selection takes time + memory ( increases with cell type number)
 # 	require(DWLS)
 	source('DWLS.R')
 	path=paste(getwd(),"/DWLS_", STRING,sep="")
@@ -436,8 +437,8 @@ run_DWLS<-function(T, C, phenoDataC, STRING, elem, ...){
 	return(RESULTS)
 }
 
-run_deconvSeq<-function(T, C, T.eset, C.eset, phenoDataC, ...){ ### linear and un-normalizes data only accepted (trans=none,norm=none)
-	#the method applies a TMM internal norm
+run_deconvSeq<-function(T, C, T.eset, C.eset, phenoDataC, ...){ ###Anna linear and un-normalized data only accepted (trans=none,norm=none)
+	#the method applies a TMM internal normalization so it can be compared with trans=none, norm=TMM results
       
 	singlecelldata = C.eset 
 	celltypes.sc = as.character(phenoDataC$cellType) #To avoid "Design matrix not of full rank" when removing 1 CT 
@@ -467,7 +468,7 @@ run_SCDC<-function(T, C, T.eset, C.eset, phenoDataC, ...){
 	return(RESULTS)
 }
 run_TIMER<-function(T, C, phenoDataC, ...){
-	source('TIMER.R')
+	source('TIMER.R') ##code from deconv_benchmark_paper
 	ref_anno <- phenoDataC$cellID
 	names(ref_anno)<- phenoDataC$cellType
 	RESULTS = t(TIMER_deconv(mix = T, ref = C, curated.cell.types = ref_anno, sig = rownames(T)))
