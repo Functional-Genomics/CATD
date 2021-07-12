@@ -185,6 +185,7 @@ run_OLS<-function(T, C, ...){
 	
 	RESULTS = apply(T,2,function(x) lm(x ~ as.matrix(C))$coefficients[-1])
 	rownames(RESULTS) <- unlist(lapply(strsplit(rownames(RESULTS),")"),function(x) x[2]))
+	RESULTS[is.na(RESULTS)] <- 0       ### Anna convert NA's to zeros prior to applying constraints
 	RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
 	RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
     return(RESULTS)
@@ -208,7 +209,10 @@ run_deconf<-function(T, C, marker_distrib, ...){
 	#Full version, irrespective of C
 	ML = CellMix::MarkerList()
 	ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
-	RESULTS <- CellMix::ged(as.matrix(T), ML, method = "deconf", maxIter = 500)@fit@H #equivalent to coef(CellMix::ged(T,...)
+	#RESULTS <- CellMix::ged(as.matrix(T), ML, method = "deconf", maxIter = 500)@fit@H #equivalent to coef(CellMix::ged(T,...)
+	res <- CellMix::ged(T, x=length(unique(as.character(marker_distrib$CT))), method = "deconf", maxIter = 500, verbose= TRUE) #Anna x = number of cell types.  compute proportions
+	RESULTS<- match.nmf(res, ML)@fit@H #Anna    ####annotate cell types 
+    
 	return(RESULTS)
 }
 
@@ -309,7 +313,6 @@ run_ssFrobenius<-function(T, C, marker_distrib, ...){
 	ML = CellMix::MarkerList()
 	ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
 	RESULTS <- CellMix::ged(as.matrix(T), ML, method = "ssFrobenius", sscale = TRUE, maxIter = 500, log = FALSE)@fit@H #equivalent to coef(CellMix::ged(T,...)
-	print(2)
 	return(RESULTS)
 }
 
@@ -319,7 +322,14 @@ run_ssKL<-function(T, C, marker_distrib, ...){
 	md = marker_distrib #Full version, irrespective of C
 	ML = CellMix::MarkerList()
 	ML@.Data <- tapply(as.character(md$gene),as.character(md$CT),list)
-	RESULTS <- CellMix::ged(as.matrix(T), ML, method = "ssKL", sscale = FALSE, maxIter=500, log = FALSE)@fit@H 
+# 	RESULTS <- CellMix::ged(as.matrix(T), ML, method = "ssKL", sscale = FALSE, maxIter=500, log = FALSE)@fit@H 
+	
+	res <- CellMix::ged(as.matrix(T), x=length(unique(as.character(marker_distrib$CT))),
+														method = "ssKL",markers= "semi", 
+														sscale = FALSE, maxIter=500, 
+														log = FALSE, 
+														verbose= TRUE)  ##Anna x=number of cell types , estimate proportions 
+    RESULTS<- match.nmf(res, ML)@fit@H  ###Anna annotate cell types
 	return(RESULTS)
 }
 
@@ -328,9 +338,9 @@ run_ssKL<-function(T, C, marker_distrib, ...){
 
 ########################################################################
 # Single-cell Methods
-run_BisqueRNA<-function(T, C, T.eset, C.eset, ...){
+run_BisqueRNA<-function(T.eset, C.eset, ...){
 	#By default, BisqueRNA uses all genes for decomposition. However, you may supply a list of genes (such as marker genes) to be used with the markers parameter
-	
+	# Anna multisubject method, needs more that one individual in the reference C
 	#DEBUG# BisqueRNA requires ExpressionSet format input, which requires dense matrix. Thus, may cause memory issue. 
 	
 	require(BisqueRNA)
@@ -356,7 +366,7 @@ run_CPM<-function(T, C, phenoDataC, ...){
 	return(RESULTS)
 }
 
-run_MuSiC<-function(T, C, T.eset, C.eset, ...){
+run_MuSiC<-function(T.eset, C.eset, ...){
 	
 	#DEBUG# MuSiC requires ExpressionSet format input, which requires dense matrix. Thus, may cause memory issue. 
 	

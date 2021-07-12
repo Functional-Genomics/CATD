@@ -34,9 +34,7 @@ if(args[1]=='s'){
 }else if(args[1]=='b'){
 	RESULTS = bulk_2references(args[2:length(args)])
 }else if(args[1] == 'p'){
-	prepare_data(dataset, number_cells = 10000)
-	
-	exit(0)
+	RESULTS = prepare_data(args[2], number_cells = round(as.numeric(args[3])))
 }
 
 name = get_name(args)

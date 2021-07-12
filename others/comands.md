@@ -11,6 +11,9 @@ Rscript CATD.R c ../simdataR/10type_batch1.rds ../simdataR/10type_batch2.rds non
 
 Rscript CATD.R b T.rds example.rds example.rds none bulk TMM all nnls 10000 none 1
 
+/nfs/leia/research/ma/chichau/bin/anaconda3/envs/r4-base/bin/Rscript CATD_script.R c ../seurat_BRR/Adams2020DS90K.rds ../seurat_BRR/Reyfman2019.rds none bulk column all nnls 10000 none 1 F T T
+
+/nfs/leia/research/ma/chichau/bin/anaconda3/envs/r4-base/bin/Rscript CATD_script.R b ../bulk/Lawlor2017.rds ../seurat_BRR/Lawlor2017.rds ../seurat_BRR/BaronHuman.rds none bulk column all nnls 10000 none 1 T
 
 git add .
 git commit -m "Chichau 9Jun2021"
@@ -36,6 +39,16 @@ conda env create -f CATD.yml
 conda activate mycatd
 Rscript -e 'devtools::install_github("Functional-Genomics/CATD_R_package", dependencies = TRUE, force = TRUE)'
 conda deactivate && conda remove --name mycatd --all
+
+ipython kernel install --name myshare --user
+
+
+conda create --name envr   ###create the environment "envr"
+conda activate envr       ### activate the environment ##then you install the following things 
+conda install -c conda-forge tensorflow
+conda install -c anaconda ipykernel
+python -m ipykernel install --user --name=myscanpy
+###then start the jupyter notebook you will be able to see the conda environments
 
 
 
@@ -116,3 +129,11 @@ Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all proportionsInAdm
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all ssFrobenius 100 none 1 F T T
 Rscript CATD_script.R s data/3type_batch1.rds none bulk TMM all ssKL 100 none 1 F T T
 
+
+
+deconf??
+
+
+git add .
+git commit -m "x"
+git push -u origin main

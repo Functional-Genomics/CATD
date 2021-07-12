@@ -17,14 +17,15 @@
 #' 
 #' @example
 #' 
-get_result<-function(norm = 'column', 
+get_result<-function(type = 's',
+					 norm = 'column', 
 					 trans = 'log', 
 					 number_cells = 10000,
 					 sampleCT='F', 
 					 propsample='T', 
 					 NormTrans = 'T'){
-	
-	datasets = c('MacParland2018',
+	if(type == 's'){
+		datasets = c('MacParland2018',
 	 'Segerstolpe2016',
 	 'Fan2020',
 	 'BaronMouse',
@@ -66,6 +67,87 @@ get_result<-function(norm = 'column',
 	 'KildisiuteAdr',
 	 'Tasic2018',
 	 'KimN2020')
+	}else if(type=='c'){
+		datasets = c('Shekhar2016_batch1.Shekhar2016_batch2',
+	 'Vieira2019_lower.Vieira2019_resection',
+	 'BaronHuman_human1.BaronHuman_human2',
+	 'BaronHuman_human3.BaronHuman_human4',
+	 'Hrvatin2018_0h.Hrvatin2018_1h',
+	 'Hrvatin2018_0h.Hrvatin2018_4h',
+	 'Fan2020_HE12W.Fan2020_HE10W',
+	 'Fan2020_HE12W.Fan2020_HE21W',
+	 'Ximerakis2019_OX3X.Ximerakis2019_OX4X',
+	 'Ximerakis2019_OX8X.Ximerakis2019_YX8L',
+	 'Ximerakis2019_old.Ximerakis2019_young',
+	 'MacParland2018_P3TLH.MacParland2018_P5TLH',
+	 'MacParland2018_P4TLH.MacParland2018_P2TLH',
+	 'Darmanis2017_healthy.Darmanis2017_tumor',
+	 'LiH2017_healthy.LiH2017_tumor',
+	 'KimN2020Lung_healthy.KimN2020Lung_tumor',
+	 'KimN2020LN_healthy.KimN2020LN_tumor',
+	 'Segerstolpe2016_healthy.Segerstolpe2016_T2D',
+	 'Xin2016_healthy.Xin2016_T2D',
+	 'Elmentaite2020_healthy.Elmentaite2020_Crohn',
+	 'Allen_human_MCA.Allen_human_M1',
+	 'Allen_mouse_MCA.Allen_mouse_M1DS90K',
+	 'VentoSS2.Vento10X',
+	 'TravagliniHumanFACS.TravagliniHuman10X',
+	 'TravagliniMouseFACS.TravagliniMouseDroplet',
+	 'KildisiuteNbPMC.KildisiuteNbGOSH',
+	 'TravagliniHuman10X.Vieira2019Travaglini',
+	 'TravagliniHuman10X.Reyfman2019',
+	 'Vieira2019Travaglini.Reyfman2019',
+	 'Adams2020DS90K.TravagliniHuman10X',
+	 'Adams2020DS90K.Reyfman2019',
+	 'Adams2020DS90K.Vieira2019Travaglini',
+	 'Lawlor2017.BaronHuman',
+	 'Lawlor2017.Muraro2016',
+	 'Lawlor2017.Segerstolpe2016',
+	 'Lawlor2017.Xin2016',
+	 'BaronHuman.Lawlor2017',
+	 'BaronHuman.Muraro2016',
+	 'BaronHuman.Segerstolpe2016',
+	 'BaronHuman.Xin2016',
+	 'Segerstolpe2016.BaronHuman',
+	 'Segerstolpe2016.Lawlor2017',
+	 'Segerstolpe2016.Muraro2016',
+	 'Segerstolpe2016.Xin2016',
+	 'Wilk2020.Stephenson2021DS90K',
+	 'Wilk2020.sims-farber_PBMC',
+	 'Wilk2020.Schulte-Schrepping2020',
+	 'Shekhar2016Menon.Menon2019A',
+	 'Shekhar2016Menon.Menon2019B',
+	 'Hrvatin2018.Tasic2016',
+	 'Hrvatin2018.Tasic2018',
+	 'Tirosh2016.Davidson2020')
+	}else if(type=='b'){
+		datasets = c('TravagliniHuman.TravagliniHuman10X.Vieira2019Travaglini',
+	 'TravagliniHuman.TravagliniHuman10X.Reyfman2019',
+	 'TravagliniHuman.Vieira2019Travaglini.Reyfman2019',
+	 'Adams2020.Adams2020DS90K.TravagliniHuman10X',
+	 'Adams2020.Adams2020DS90K.Reyfman2019',
+	 'Adams2020.Adams2020DS90K.Vieira2019Travaglini',
+	 'Lawlor2017.Lawlor2017.BaronHuman',
+	 'Lawlor2017.Lawlor2017.Muraro2016',
+	 'Lawlor2017.Lawlor2017.Segerstolpe2016',
+	 'Lawlor2017.Lawlor2017.Xin2016',
+	 'BaronHuman.BaronHuman.Lawlor2017',
+	 'BaronHuman.BaronHuman.Muraro2016',
+	 'BaronHuman.BaronHuman.Segerstolpe2016',
+	 'BaronHuman.BaronHuman.Xin2016',
+	 'Segerstolpe2016.Segerstolpe2016.BaronHuman',
+	 'Segerstolpe2016.Segerstolpe2016.Lawlor2017',
+	 'Segerstolpe2016.Segerstolpe2016.Muraro2016',
+	 'Segerstolpe2016.Segerstolpe2016.Xin2016',
+	 'Wilk2020_GSE150316.Wilk2020.Stephenson2021DS90K',
+	 'Wilk2020_GSE150316.Wilk2020.sims-farber_PBMC',
+	 'Wilk2020_GSE150316.Wilk2020.Schulte-Schrepping2020',
+	 'Shekhar2016.Shekhar2016Menon.Menon2019A',
+	 'Shekhar2016.Shekhar2016Menon.Menon2019B',
+	 'Hrvatin2018.Hrvatin2018.Tasic2016',
+	 'Hrvatin2018.Hrvatin2018.Tasic2018',
+	 'Tirosh2016.Tirosh2016.Davidson2020')
+	}
 
 	bulk_methods = c("CIBERSORT","DeconRNASeq","OLS","nnls","FARDEEP","RLR","DCQ","elasticNet","lasso","ridge","EPIC",
 					 "DSA","ssKL","ssFrobenius","dtangle", "deconf", "proportionsInAdmixture", "EpiDISH","CAMmarker","CDSeq")
@@ -79,10 +161,10 @@ get_result<-function(norm = 'column',
 		for(meth in all_methods){
 			if(meth %in% bulk_methods){
 				tp = 'bulk'
-				name = sprintf('RDS/s.%s.%s.%s.%s.all.%s.%d.none.1.%s.%s.%s.rds', dataset, trans, tp, norm, meth, number_cells, sampleCT, propsample, NormTrans)
+				name = sprintf('RDS/%s.%s.%s.%s.%s.all.%s.%d.none.1.%s.%s.%s.rds', type, dataset, trans, tp, norm, meth, number_cells, sampleCT, propsample, NormTrans)
 			}else{
 				tp = 'sc'
-				name = sprintf('RDS/s.%s.%s.%s.%s.%s.%s.%d.none.1.%s.%s.%s.rds', dataset, trans, tp, norm, norm, meth, number_cells, sampleCT, propsample, NormTrans)
+				name = sprintf('RDS/%s.%s.%s.%s.%s.%s.%s.%d.none.1.%s.%s.%s.rds', type, dataset, trans, tp, norm, norm, meth, number_cells, sampleCT, propsample, NormTrans)
 			}
 			if(file.exists(name)){
 				x = readRDS(name)

@@ -6,8 +6,9 @@ set.seed(24)
 require(limma); require(dplyr); require(pheatmap); require(Matrix); require(sparseMatrixStats)
 
 # Added parameters: sampleCT = FALSE, propsample = TRUE, pct.var=30
+# Pseudo bulk generator
 Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.var=30, Num.mixtures = 1000, 
-					  pool.size = 100, min.percentage = 1, max.percentage = 99, seed = 24){ 
+					  pool.size = 100, min.percentage = 1, max.percentage = 99, seed = 24, mode = 2){ 
 
 	CT = unique(phenoData$cellType)
 	?stopifnot(length(CT) >= 2)
@@ -22,67 +23,82 @@ Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.v
 	Tissues = list()
 	Proportions = list()
 
-	for(y in 1:Num.mixtures){
+	if(mode == 1){
+		for(y in 1:Num.mixtures){
 
-		#Only allow feasible mixtures based on cell distribution
-		while(!exists("P")){
-		  
-			if(sampleCT){
-				num.CT.mixture = sample(x = 3:length(CT),1) # more than 3 cell types to fit a curve.
-				#num.CT.mixture = sample(x = round(length(CT)*0.5):length(CT),1)
-				selected.CT = sample(CT, num.CT.mixture, replace = FALSE)
-			}else{
-				num.CT.mixture = length(CT)
-				selected.CT = CT
+			#Only allow feasible mixtures based on cell distribution
+			while(!exists("P")){
+			  
+				if(sampleCT){
+					num.CT.mixture = sample(x = 3:length(CT),1) # more than 3 cell types to fit a curve.
+					#num.CT.mixture = sample(x = round(length(CT)*0.5):length(CT),1)
+					selected.CT = sample(CT, num.CT.mixture, replace = FALSE)
+				}else{
+					num.CT.mixture = length(CT)
+					selected.CT = CT
+				}
+
+				if(propsample){
+					x = round(runif(num.CT.mixture, 100-pct.var, 100+pct.var))/100.0
+					P = cell.distribution[selected.CT,]$max.n*x
+				}else{
+					P = runif(num.CT.mixture, min.percentage, max.percentage)
+				}
+
+				P = round(P/sum(P), digits = log10(pool.size))  #sum to 1
+				P = data.frame(CT = selected.CT, expected = P, stringsAsFactors = FALSE)
+
+				missing.CT = CT[!CT %in% selected.CT]
+				missing.CT = data.frame(CT = missing.CT, expected = rep(0, length(missing.CT)), stringsAsFactors = FALSE)
+
+				P = rbind.data.frame(P, missing.CT)
+				potential.mix = merge(P, cell.distribution)
+				potential.mix$size = potential.mix$expected * pool.size
+
+				#       if( !all(potential.mix$max.n >= potential.mix$size) | sum(P$expected) != 1){
+				if(sum(P$expected) != 1){
+					rm(list="P") 
+				}
+			  
 			}
 
-			if(propsample){
-				x = round(runif(num.CT.mixture, 100-pct.var, 100+pct.var))/100.0
-				P = cell.distribution[selected.CT,]$max.n*x
-			}else{
-				P = runif(num.CT.mixture, min.percentage, max.percentage)
-			}
+			# Using info in P to build T simultaneously
+			chosen_cells <- sapply(which(P$expected != 0), function(x){
+				n.cells = P$expected[x] * pool.size
+				#       P$n[x] = n.cells #
+				#       chosen = sample(phenoData$cellID[phenoData$cellType == P$CT[x]],
+				#                       n.cells)
+				chosen = sample(phenoData$cellID[phenoData$cellType == P$CT[x]],
+							  n.cells, replace = TRUE)
+				chosen
+			}) %>% unlist()
 
-			P = round(P/sum(P), digits = log10(pool.size))  #sum to 1
-			P = data.frame(CT = selected.CT, expected = P, stringsAsFactors = FALSE)
+			T <- Matrix::rowSums(sce[,chosen_cells]) %>% as.data.frame()
+			#     T <- Matrix::rowSums(sce[,colnames(sce) %in% chosen_cells]) %>% as.data.frame()
+			colnames(T) = paste("mix",y,sep="")
 
-			missing.CT = CT[!CT %in% selected.CT]
-			missing.CT = data.frame(CT = missing.CT, expected = rep(0, length(missing.CT)), stringsAsFactors = FALSE)
+			P = P[,c("CT","expected")]
+			P$mix = paste("mix",y,sep="")
 
-			P = rbind.data.frame(P, missing.CT)
-			potential.mix = merge(P, cell.distribution)
-			potential.mix$size = potential.mix$expected * pool.size
+			Tissues[[y]] <- T
+			Proportions[[y]] <- P
 
-			#       if( !all(potential.mix$max.n >= potential.mix$size) | sum(P$expected) != 1){
-			if(sum(P$expected) != 1){
-				rm(list="P") 
-			}
-		  
+			rm(list=c("T","P","chosen_cells","missing.CT"))
+
 		}
-
-		# Using info in P to build T simultaneously
-		chosen_cells <- sapply(which(P$expected != 0), function(x){
-			n.cells = P$expected[x] * pool.size
-			#       P$n[x] = n.cells #
-			#       chosen = sample(phenoData$cellID[phenoData$cellType == P$CT[x]],
-			#                       n.cells)
-			chosen = sample(phenoData$cellID[phenoData$cellType == P$CT[x]],
-						  n.cells, replace = TRUE)
-			chosen
-		}) %>% unlist()
-
-		T <- Matrix::rowSums(sce[,chosen_cells]) %>% as.data.frame()
-		#     T <- Matrix::rowSums(sce[,colnames(sce) %in% chosen_cells]) %>% as.data.frame()
-		colnames(T) = paste("mix",y,sep="")
-
-		P = P[,c("CT","expected")]
-		P$mix = paste("mix",y,sep="")
-
-		Tissues[[y]] <- T
-		Proportions[[y]] <- P
-
-		rm(list=c("T","P","chosen_cells","missing.CT"))
-
+	}
+	else if(mode ==2){
+		for(y in 1:Num.mixtures){
+			chosen_cells = sample(phenoData$cellID, pool.size, replace = TRUE)
+			T <- Matrix::rowSums(sce[,chosen_cells]) %>% as.data.frame()
+			P1 = phenoData$cellType
+			names(P1)<-phenoData$cellID
+			P = data.frame(table(P1[chosen_cells]),stringsAsFactors = FALSE) 
+			colnames(P) = c("CT","expected")
+			P$mix = paste("mix",y,sep="")
+			Tissues[[y]] <- T
+			Proportions[[y]] <- P
+		}
 	}
 
 	P = do.call(rbind.data.frame, Proportions)
