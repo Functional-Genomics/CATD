@@ -211,7 +211,7 @@ run_deconf<-function(T, C, marker_distrib, ...){
 	ML@.Data <- tapply(as.character(marker_distrib$gene),as.character(marker_distrib$CT),list)
 	#RESULTS <- CellMix::ged(as.matrix(T), ML, method = "deconf", maxIter = 500)@fit@H #equivalent to coef(CellMix::ged(T,...)
 	res <- CellMix::ged(T, x=length(unique(as.character(marker_distrib$CT))), method = "deconf", maxIter = 500, verbose= TRUE) #Anna x = number of cell types.  compute proportions
-	RESULTS<- match.nmf(res, ML)@fit@H #Anna    ####annotate cell types 
+	RESULTS<- CellMix::match.nmf(res, ML)@fit@H #Anna    ####annotate cell types 
     
 	return(RESULTS)
 }
@@ -282,6 +282,7 @@ run_proportionsInAdmixture<-function(T, C, ...){
 	RESULTS[is.na(RESULTS)] <- 0  ####Anna## convert NAs to zeros so you can apply sum to one constraint
 	RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
 	RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
+	RESULTS <- RESULTS[-nrow(RESULTS),]  ###Anna remove cell type "other" that proportionInadmixture generates
 	return(RESULTS)
 }
 
@@ -329,7 +330,7 @@ run_ssKL<-function(T, C, marker_distrib, ...){
 														sscale = FALSE, maxIter=500, 
 														log = FALSE, 
 														verbose= TRUE)  ##Anna x=number of cell types , estimate proportions 
-    RESULTS<- match.nmf(res, ML)@fit@H  ###Anna annotate cell types
+    RESULTS<- CellMix::match.nmf(res, ML)@fit@H  ###Anna annotate cell types
 	return(RESULTS)
 }
 
