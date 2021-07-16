@@ -2,27 +2,6 @@
 
 source('framework.R')
 
-#' @title get_name
-#' @description
-#' This function generates a result file name by joining all the input parameters using dot ".". 
-#' @details
-#' all the parameters are joined together. Only the ".rds" suffix of the rds data file is removed. 
-#' @param 
-#' params is a list of characters. 
-#' @return
-#' This function returns a string, which can be used as a result file name. 
-#' @example
-#' name = get_name(args)
-get_name<-function(params){
-    n = ''
-    for( i in params){
-        j = unlist(strsplit(i, "/"))
-        j = gsub('.rds','',dplyr::last(j))
-        n = paste0(n, j, sep = ".")
-    }
-    return(n)
-}
-
 
 # main function
 args <- commandArgs(trailingOnly=TRUE)
@@ -31,10 +10,16 @@ if(args[1]=='s'){
 	RESULTS = self_reference(args[2:length(args)])
 }else if(args[1]=='c'){
 	RESULTS = cross_reference(args[2:length(args)])
+}else if(args[1]=='s1'){
+	RESULTS = self_reference_pro(args[2:length(args)])
+}else if(args[1]=='c1'){
+	RESULTS = cross_reference_pro(args[2:length(args)])
 }else if(args[1]=='b'){
 	RESULTS = bulk_2references(args[2:length(args)])
 }else if(args[1] == 'p'){
-	RESULTS = prepare_data(args[2], number_cells = round(as.numeric(args[3])))
+	RESULTS = prepare_data(args[2:length(args)])
+}else if(args[1] == 'q'){
+	RESULTS = prepare_data2(args[2:length(args)])
 }
 
 name = get_name(args)

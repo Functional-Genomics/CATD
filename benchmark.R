@@ -370,9 +370,15 @@ read_data<-function(dataset){
 	return(list('data'=data, 'pData'=pData, 'original_cell_names'=original_cell_names, 'cell_counts'=cell_counts))
 }
 
+# Read bulk and pseudobulk data
 read_bulk<-function(dataset){
 	data = readRDS(dataset)
-	return(list('data'=data))
+	
+	if (class(data)== "list") {
+		return data
+	} else{
+		return(list('data'=data))
+	}
 }
 
 QC<-function(X){

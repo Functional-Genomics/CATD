@@ -3,8 +3,42 @@
 source('benchmark.R')
 source('deconvolution.R')
 
-prepare_data<-function(dataset, number_cells = 10000){
+#' @title get_name
+#' @description
+#' This function generates a result file name by joining all the input parameters using dot ".". 
+#' @details
+#' all the parameters are joined together. Only the ".rds" suffix of the rds data file is removed. 
+#' @param 
+#' params is a list of characters. 
+#' @return
+#' This function returns a string, which can be used as a result file name. 
+#' @example
+#' name = get_name(args)
+get_name<-function(params){
+    n = ''
+    for( i in params){
+        j = unlist(strsplit(i, "/"))
+        j = gsub('.rds','',dplyr::last(j))
+        n = paste0(n, j, sep = ".")
+    }
+    return(n)
+}
 
+prepare_data<-function(param){
+
+	dataset = param[1]
+	number_cells = round(as.numeric(param[2]))
+	
+	if(param[3]=='T'){
+        sampleCT = TRUE
+    }else{
+        sampleCT = FALSE
+    }
+    if(param[4]=='T'){
+        propsample = TRUE
+    }else{
+        propsample = FALSE
+    }
 	### Read single cell data and metadata
 	X = read_data(dataset)
 	training <- as.numeric(unlist(sapply(unique(colnames(X$data)), function(x) {
@@ -14,12 +48,61 @@ prepare_data<-function(dataset, number_cells = 10000){
 	pDataC = X$pData[training,]
 	test <- X$data[,testing]
 	colnames(test) <- X$original_cell_names[testing]
-	Xtest <- Generator(sce = test, phenoData = X$pData[testing,], sampleCT = FALSE, propsample = TRUE, Num.mixtures = 1000, pool.size = number_cells)
-	# P <- Xtest$P
+	Xtest <- Generator(sce = test, phenoData = X$pData[testing,], sampleCT = sampleCT, propsample = propsample, Num.mixtures = 1000, pool.size = number_cells)
 
 	return(list('Xtest':Xtest, 'Xtrain':Xtrain, 'pDataC':pDataC))
 }
 
+
+prepare_data2<-function(param){
+
+	dataset1 = param[1]
+	dataset2 = param[2]
+	number_cells = round(as.numeric(param[3]))
+	
+	if(param[4]=='T'){
+        sampleCT = TRUE
+    }else{
+        sampleCT = FALSE
+    }
+    if(param[5]=='T'){
+        propsample = TRUE
+    }else{
+        propsample = FALSE
+    }
+	#-------------------------------------------------------
+	### Read single cell data and metadata
+	X1 = read_data(dataset1)
+	X2 = read_data(dataset2)
+
+	#-------------------------------------------------------
+	### QC
+	if(FALSE){
+		X1<-QC(X1)
+		X2<-QC(X2)
+	}
+	
+	#-------------------------------------------------------
+	### get intersection for the features
+	to_keep = intersect(rownames(X1$data), rownames(X2$data))
+	print(paste0('number of intersect features: ', length(to_keep)) )
+	X1$data = X1$data[to_keep,]
+	X2$data = X2$data[to_keep,]
+	
+	#-------------------------------------------------------
+	### Prepare the reference data (on train data)
+	Xtrain = prepare_train(X1$data, X1$original_cell_names)
+	pDataC = X1$pData
+
+	#-------------------------------------------------------
+	### Generation of 1000 pseudo-bulk mixtures (T) (on test data)
+	test <- X2$data
+	colnames(test) <- X2$original_cell_names
+
+	Xtest <- Generator(sce = test, phenoData = X2$pData, Num.mixtures = 1000, sampleCT = sampleCT, propsample = propsample, pool.size = number_cells)
+	
+	return(list('Xtest':Xtest, 'Xtrain':Xtrain, 'pDataC':pDataC))
+}
 
 #' @title Framework
 #' 
@@ -196,6 +279,7 @@ self_reference<-function(param){
         NormTrans = FALSE
     }
     
+    ########### prepare_data ########################
 	#-------------------------------------------------------
 	### Read single cell data and metadata
 	X = read_data(dataset)
@@ -222,7 +306,8 @@ self_reference<-function(param){
 	colnames(test) <- X$original_cell_names[testing]
 
 	Xtest <- Generator(sce = test, phenoData = X$pData[testing,], sampleCT = sampleCT, propsample = propsample, Num.mixtures = 1000, pool.size = number_cells)
-	P <- Xtest$P
+# 	P <- Xtest$P
+	##################################################
 	
 	return(Framework(deconv_type,
 					NormTrans,
@@ -234,7 +319,77 @@ self_reference<-function(param){
 					transformation,
 					marker_strategy,
 					to_remove,
-					P,
+					Xtest$P,
+					method,
+					pDataC))
+	
+}
+
+self_reference_pro<-function(param){
+	
+	if(length(param)!=12){
+
+		print("Please check that all required parameters are indicated or are correct")
+		print("Example usage for bulk deconvolution methods: 'Rscript Master_deconvolution.R baron none bulk TMM all nnls 100 none 1'")
+		print("Example usage for single-cell deconvolution methods: 'Rscript Master_deconvolution.R baron none sc TMM TMM MuSiC 100 none 1'")
+		stop()
+	} 
+
+	flag = FALSE
+
+	dataset = param[1]
+	transformation = param[2]
+	deconv_type = param[3]
+
+	if(deconv_type == "bulk"){
+		normalization = param[4]
+		marker_strategy = param[5]
+	} else if (deconv_type == "sc") {
+		normalization_scC = param[4]
+		normalization_scT = param[5]
+	} else {
+		print("Please enter a valid deconvolution framework")
+		stop()
+	}
+
+	method = param[6]
+# 	number_cells = round(as.numeric(param[7]), digits = -2) #has to be multiple of 100
+	to_remove = param[8]
+	num_cores = min(as.numeric(param[9]),parallel::detectCores()-1)
+# 	if(param[10]=='T'){
+#         sampleCT = TRUE
+#     }else{
+#         sampleCT = FALSE
+#     }
+#     if(param[11]=='T'){
+#         propsample = TRUE
+#     }else{
+#         propsample = FALSE
+#     }
+    if(param[12]=='T'){
+		NormTrans = TRUE
+	}else{
+        NormTrans = FALSE
+    }
+    
+    pbname = get_name(c(param[1], param[7], param[10], param[11]))
+    
+    x = read_bulk(sprintf('RDS/p.%s.rds', pbname))
+	Xtest = x$Xtest
+	pDataC = x$pDataC
+	Xtrain = x$Xtrain
+	
+	return(Framework(deconv_type,
+					NormTrans,
+					Xtest,
+					Xtrain,
+					normalization,
+					normalization_scT,
+					normalization_scC,
+					transformation,
+					marker_strategy,
+					to_remove,
+					Xtest$P,
 					method,
 					pDataC))
 	
@@ -343,7 +498,7 @@ cross_reference<-function(param){
 	colnames(test) <- X2$original_cell_names
 
 	Xtest <- Generator(sce = test, phenoData = X2$pData, Num.mixtures = 1000, sampleCT = sampleCT, propsample = propsample, pool.size = number_cells)
-	P <- Xtest$P
+# 	P <- Xtest$P
 
 	return(Framework(deconv_type,
 					NormTrans,
@@ -355,7 +510,77 @@ cross_reference<-function(param){
 					transformation,
 					marker_strategy,
 					to_remove,
-					P,
+					Xtest$P,
+					method,
+					pDataC))
+}
+
+cross_reference_pro<-function(param){
+	
+	if(length(param)!=13){
+
+		print("Please check that all required parameters are indicated or are correct")
+		print("Example usage for bulk deconvolution methods: 'Rscript Master_deconvolution.R baron none bulk TMM all nnls 100 none 1'")
+		print("Example usage for single-cell deconvolution methods: 'Rscript Master_deconvolution.R baron none sc TMM TMM MuSiC 100 none 1'")
+		stop()
+	} 
+
+	flag = FALSE
+
+	dataset1 = param[1]
+	dataset2 = param[2]
+	transformation = param[3]
+	deconv_type = param[4]
+
+	if(deconv_type == "bulk"){
+		normalization = param[5]
+		marker_strategy = param[6]
+	} else if (deconv_type == "sc") {
+		normalization_scC = param[5]
+		normalization_scT = param[6]
+	} else {
+		print("Please enter a valid deconvolution framework")
+		stop()
+	}
+
+	method = param[7]
+# 	number_cells = round(as.numeric(param[8]), digits = -2) #has to be multiple of 100
+	to_remove = param[9]
+	num_cores = min(as.numeric(param[10]),parallel::detectCores()-1)
+#     if(param[11]=='T'){
+#         sampleCT = TRUE
+#     }else{
+#         sampleCT = FALSE
+#     }
+#     if(param[12]=='T'){
+#         propsample = TRUE
+#     }else{
+#         propsample = FALSE
+#     }
+    if(param[13]=='T'){
+		NormTrans = TRUE
+	}else{
+        NormTrans = FALSE
+    }
+
+	pbname = get_name(c(param[1], param[2], param[8], param[11], param[12]))
+    
+    x = read_bulk(sprintf('RDS/q.%s.rds', pbname))
+	Xtest = x$Xtest
+	pDataC = x$pDataC
+	Xtrain = x$Xtrain
+
+	return(Framework(deconv_type,
+					NormTrans,
+					Xtest,
+					Xtrain,
+					normalization,
+					normalization_scT,
+					normalization_scC,
+					transformation,
+					marker_strategy,
+					to_remove,
+					Xtest$P,
 					method,
 					pDataC))
 }
@@ -468,7 +693,7 @@ bulk_reference<-function(param){
 					transformation,
 					marker_strategy,
 					to_remove,
-					P,
+					Xtest$P,
 					method,
 					pDataC))
 }
