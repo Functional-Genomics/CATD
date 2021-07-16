@@ -23,7 +23,8 @@ get_result<-function(type = 's',
 					 number_cells = 10000,
 					 sampleCT='F', 
 					 propsample='T', 
-					 NormTrans = 'T'){
+					 NormTrans = 'T',
+                     mode=1){
 	if(type == 's'){
 		datasets = c('MacParland2018',
 	 'Segerstolpe2016',
@@ -161,14 +162,22 @@ get_result<-function(type = 's',
 		for(meth in all_methods){
 			if(meth %in% bulk_methods){
 				tp = 'bulk'
-				name = sprintf('RDS/%s.%s.%s.%s.%s.all.%s.%d.none.1.%s.%s.%s.rds', type, dataset, trans, tp, norm, meth, number_cells, sampleCT, propsample, NormTrans)
+                if((type=='b')|(type=='b1')){
+                    name = sprintf('RDS/%s.%s.%s.%s.%s.all.%s.%d.none.1.%s.rds', type, dataset, trans, tp, norm, meth, number_cells, NormTrans)
+                }else{
+                    name = sprintf('RDS/%s.%s.%s.%s.%s.all.%s.%d.none.1.%s.%s.%s.rds', type, dataset, trans, tp, norm, meth, number_cells, sampleCT, propsample, NormTrans)
+                }
 			}else{
 				tp = 'sc'
-				name = sprintf('RDS/%s.%s.%s.%s.%s.%s.%s.%d.none.1.%s.%s.%s.rds', type, dataset, trans, tp, norm, norm, meth, number_cells, sampleCT, propsample, NormTrans)
+                if((type=='b')|(type=='b1')){
+                    name = sprintf('RDS/%s.%s.%s.%s.%s.%s.%s.%d.none.1.%s.rds', type, dataset, trans, tp, norm, norm, meth, number_cells, NormTrans)
+                }else{
+                    name = sprintf('RDS/%s.%s.%s.%s.%s.%s.%s.%d.none.1.%s.%s.%s.rds', type, dataset, trans, tp, norm, norm, meth, number_cells, sampleCT, propsample, NormTrans)
+                }
 			}
 			if(file.exists(name)){
 				x = readRDS(name)
-				y = evaluation_metrics(x)$Pearson
+				y = evaluation_metrics(x, mode = mode)$Pearson
 			}else{
 				y = -1
 			}
