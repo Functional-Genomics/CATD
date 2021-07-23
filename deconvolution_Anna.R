@@ -202,7 +202,7 @@ run_RLR<-function(T, C, ...){
 	return(RESULTS)
 }
 
-run_deconf<-function(T, C, marker_distrib, ...){ unsupervised-nnmf
+run_deconf<-function(T, C, marker_distrib, ...){ #unsupervised-nnmf
 
 	##source("deconf.R")
 
@@ -280,9 +280,10 @@ run_proportionsInAdmixture<-function(T, C, ...){
 	require(ADAPTS)
 	RESULTS = ADAPTS::estCellPercent(refExpr = C, geneExpr = T, method="proportionsInAdmixture")
 	RESULTS[is.na(RESULTS)] <- 0  ####Anna## convert NAs to zeros so you can apply sum to one constraint
-	RESULTS <- RESULTS[-nrow(RESULTS),]  ###Anna remove cell type "other" that proportionInadmixture generates
+	#RESULTS <- RESULTS[-nrow(RESULTS),]  ###Anna remove cell type "other" that proportionInadmixture generates
 	RESULTS = apply(RESULTS,2,function(x) ifelse(x < 0, 0, x)) #explicit non-negativity constraint
 	RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
+    RESULTS <- RESULTS[-nrow(RESULTS),]       ###Anna remove cell type "other" that proportionInadmixture generates           
 	return(RESULTS)
 }
 
