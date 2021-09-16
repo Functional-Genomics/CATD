@@ -14,15 +14,22 @@ if(args[1]=='s'){
 	RESULTS = self_reference_pro(args[2:length(args)])
 }else if(args[1]=='c1'){
 	RESULTS = cross_reference_pro(args[2:length(args)])
+}else if(args[1] == 't'){
+	RESULTS = combine_reference_pro(args[2:length(args)])
 }else if(args[1]=='b'){
 	RESULTS = bulk_2references(args[2:length(args)])
 }else if(args[1] == 'p'){
-	RESULTS = prepare_data(args[2:length(args)])
+	RESULTS = prepare_self(args[2:length(args)])
 }else if(args[1] == 'q'){
-	RESULTS = prepare_data2(args[2:length(args)])
+	RESULTS = prepare_cross(args[2:length(args)])
 }
 
 name = get_name(args)
-saveRDS(RESULTS, paste0("RDS/",name,"rds"))
+
+if(args[1] %in% c('p','q')){
+	saveRDS(RESULTS, paste0("RDS/",name,"rds"))
+}else{
+	saveRDS(RESULTS, paste0("RDS2/",name,"rds"))
+}
 
 print('Finished!')

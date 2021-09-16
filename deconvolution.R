@@ -55,7 +55,9 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
     RESULTS = RESULTS[gtools::mixedsort(rownames(RESULTS)),]                  
     RESULTS = data.table::melt(RESULTS)                   
 	colnames(RESULTS) <-c("CT","tissue","observed_values")
-
+#     print(RESULTS)
+#     saveRDS(RESULTS, "RESULTS.rds")
+#     saveRDS(P, "P.rds")
 	if(!is.null(P)){
 		P = P[gtools::mixedsort(rownames(P)),]
 		P$CT = rownames(P)
@@ -65,7 +67,7 @@ Deconvolution <- function(T, C, method, phenoDataC, P = NULL, elem = NULL, STRIN
 		RESULTS$expected_values <-round(RESULTS$expected_values,3)
 		RESULTS$observed_values <-round(RESULTS$observed_values,3)
 	}
-
+#     print(RESULTS)
     return(RESULTS) 
 
 }
@@ -271,6 +273,7 @@ run_nnls<-function(T, C, ...){
 	RESULTS = do.call(cbind.data.frame,lapply(apply(T,2,function(x) nnls::nnls(as.matrix(C),x)), function(y) y$x))
 	rownames(RESULTS) <- colnames(C)
 	RESULTS = apply(RESULTS,2,function(x) x/sum(x)) #explicit STO constraint
+#     print(RESULTS)
 	return(RESULTS)
 }
 

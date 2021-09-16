@@ -24,7 +24,7 @@ get_name<-function(params){
     return(n)
 }
 
-prepare_data<-function(param){
+prepare_self<-function(param){
 
 	dataset = param[1]
 	number_cells = round(as.numeric(param[2]))
@@ -39,22 +39,30 @@ prepare_data<-function(param){
     }else{
         propsample = FALSE
     }
+    if(param[5]=='2'){
+        pbmode = 2
+    }else{
+        pbmode = 1
+    }
+   
 	### Read single cell data and metadata
 	X = read_data(dataset)
+#     print('===0')
 	training <- as.numeric(unlist(sapply(unique(colnames(X$data)), function(x) {
 				sample(which(colnames(X$data) %in% x), X$cell_counts[x]/2) })))
 	testing <- which(!1:ncol(X$data) %in% training)
+#     print('===1')
 	Xtrain = prepare_train(X$data[,training], X$original_cell_names[training])
+#     print('===2')
 	pDataC = X$pData[training,]
 	test <- X$data[,testing]
 	colnames(test) <- X$original_cell_names[testing]
-	Xtest <- Generator(sce = test, phenoData = X$pData[testing,], sampleCT = sampleCT, propsample = propsample, Num.mixtures = 1000, pool.size = number_cells)
-
-	return(list('Xtest':Xtest, 'Xtrain':Xtrain, 'pDataC':pDataC))
+	Xtest <- Generator(sce = test, phenoData = X$pData[testing,], sampleCT = sampleCT, propsample = propsample, Num.mixtures = 1000, pool.size = number_cells, mode = pbmode)
+	return(list('Xtest'=Xtest, 'Xtrain'=Xtrain, 'pDataC'=pDataC))
 }
 
 
-prepare_data2<-function(param){
+prepare_cross<-function(param){
 
 	dataset1 = param[1]
 	dataset2 = param[2]
@@ -69,6 +77,11 @@ prepare_data2<-function(param){
         propsample = TRUE
     }else{
         propsample = FALSE
+    }
+    if(param[6]=='2'){
+        pbmode = 2
+    }else{
+        pbmode = 1
     }
 	#-------------------------------------------------------
 	### Read single cell data and metadata
@@ -99,9 +112,9 @@ prepare_data2<-function(param){
 	test <- X2$data
 	colnames(test) <- X2$original_cell_names
 
-	Xtest <- Generator(sce = test, phenoData = X2$pData, Num.mixtures = 1000, sampleCT = sampleCT, propsample = propsample, pool.size = number_cells)
+	Xtest <- Generator(sce = test, phenoData = X2$pData, Num.mixtures = 10000, sampleCT = sampleCT, propsample = propsample, pool.size = number_cells, mode = pbmode)
 	
-	return(list('Xtest':Xtest, 'Xtrain':Xtrain, 'pDataC':pDataC))
+	return(list('Xtest'=Xtest, 'Xtrain'=Xtrain, 'pDataC'=pDataC))
 }
 
 #' @title Framework
@@ -193,6 +206,9 @@ Framework<-function(deconv_type,
 	# C is the reference exprs (average for each cell type)
 	# P is the preassigned proportion for the pseudo-bulk
 	# pDataC is the meta-data for the reference
+#     saveRDS(T, 'T.rds')
+#     saveRDS(C, 'C.rds')
+#     saveRDS(pDataC, 'pDataC.rds')
 	RESULTS = Deconvolution(T = T, 
 							C = C, 
 							method = method, 
@@ -234,7 +250,7 @@ Framework<-function(deconv_type,
 #' 
 self_reference<-function(param){
 	
-	if(length(param)!=12){
+	if(length(param)!=13){
 
 		print("Please check that all required parameters are indicated or are correct")
 		print("Example usage for bulk deconvolution methods: 'Rscript Master_deconvolution.R baron none bulk TMM all nnls 100 none 1'")
@@ -372,7 +388,7 @@ self_reference_pro<-function(param){
         NormTrans = FALSE
     }
     
-    pbname = get_name(c(param[1], param[7], param[10], param[11]))
+    pbname = get_name(c(param[1], param[7], param[10], param[11], param[13]))
     
     x = read_bulk(sprintf('RDS/p.%s.rds', pbname))
 	Xtest = x$Xtest
@@ -563,7 +579,7 @@ cross_reference_pro<-function(param){
         NormTrans = FALSE
     }
 
-	pbname = get_name(c(param[1], param[2], param[8], param[11], param[12]))
+	pbname = get_name(c(param[1], param[2], param[8], param[11], param[12], param[14]))
     
     x = read_bulk(sprintf('RDS/q.%s.rds', pbname))
 	Xtest = x$Xtest
@@ -748,3 +764,59 @@ bulk_2references<-function(param){
 	return(RESULTS)
 }
 
+combine_reference_pro<-function(param){
+	
+	if(length(param)!=9){
+#         print(length(param))
+#         print(param)
+		print("Please check that all required parameters are indicated or are correct")
+		print("Example usage for bulk deconvolution methods: 'Rscript Master_deconvolution.R baron none bulk TMM all nnls 100 none 1'")
+		print("Example usage for single-cell deconvolution methods: 'Rscript Master_deconvolution.R baron none sc TMM TMM MuSiC 100 none 1'")
+		stop()
+	} 
+
+	dataset = param[1]
+	transformation = param[2]
+	deconv_type = param[3]
+
+	if(deconv_type == "bulk"){
+		normalization = param[4]
+		marker_strategy = param[5]
+	} else if (deconv_type == "sc") {
+		normalization_scC = param[4]
+		normalization_scT = param[5]
+	} else {
+		print("Please enter a valid deconvolution framework")
+		stop()
+	}
+
+	method = param[6]
+	to_remove = param[7]
+	num_cores = min(as.numeric(param[8]),parallel::detectCores()-1)
+
+    if(param[9]=='T'){
+		NormTrans = TRUE
+	}else{
+        NormTrans = FALSE
+    }
+    
+#     x = read_bulk(sprintf('RDS/%s.rds', param[1]))
+    x = read_bulk(param[1])
+	Xtest = x$Xtest
+	pDataC = x$pDataC
+	Xtrain = x$Xtrain
+
+	return(Framework(deconv_type,
+					NormTrans,
+					Xtest,
+					Xtrain,
+					normalization,
+					normalization_scT,
+					normalization_scC,
+					transformation,
+					marker_strategy,
+					to_remove,
+					Xtest$P,
+					method,
+					pDataC))
+}

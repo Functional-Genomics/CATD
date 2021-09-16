@@ -40,7 +40,21 @@ conda activate mycatd
 Rscript -e 'devtools::install_github("Functional-Genomics/CATD_R_package", dependencies = TRUE, force = TRUE)'
 conda deactivate && conda remove --name mycatd --all
 
-ipython kernel install --name myshare --user
+python -m ipykernel install --name myshare --user
+
+
+sceasy::convertFormat("combined.h5", from="anndata", to="seurat",
+                       outFile="combined.rds")
+
+library(Seurat)
+ad = readRDS("combined.rds")
+ad1 = subset(ad, subset = (SCCAF_Li == "CD16 monocytes"))
+Idents(ad1)<-ad1@meta.data[,"CoVID-19 severity"]
+de = FindAllMarkers( ad1, test.use = 'MAST')
+
+de %>%
+    group_by(cluster) %>%
+    top_n(n = 2, wt = avg_log2FC)
 
 
 conda create --name envr   ###create the environment "envr"

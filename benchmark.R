@@ -28,7 +28,6 @@ Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.v
 
 			#Only allow feasible mixtures based on cell distribution
 			while(!exists("P")){
-			  
 				if(sampleCT){
 					num.CT.mixture = sample(x = 3:length(CT),1) # more than 3 cell types to fit a curve.
 					#num.CT.mixture = sample(x = round(length(CT)*0.5):length(CT),1)
@@ -37,20 +36,18 @@ Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.v
 					num.CT.mixture = length(CT)
 					selected.CT = CT
 				}
-
 				if(propsample){
 					x = round(runif(num.CT.mixture, 100-pct.var, 100+pct.var))/100.0
 					P = cell.distribution[selected.CT,]$max.n*x
 				}else{
 					P = runif(num.CT.mixture, min.percentage, max.percentage)
 				}
-
 				P = round(P/sum(P), digits = log10(pool.size))  #sum to 1
 				P = data.frame(CT = selected.CT, expected = P, stringsAsFactors = FALSE)
 
 				missing.CT = CT[!CT %in% selected.CT]
 				missing.CT = data.frame(CT = missing.CT, expected = rep(0, length(missing.CT)), stringsAsFactors = FALSE)
-
+                
 				P = rbind.data.frame(P, missing.CT)
 				potential.mix = merge(P, cell.distribution)
 				potential.mix$size = potential.mix$expected * pool.size
@@ -72,8 +69,7 @@ Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.v
 							  n.cells, replace = TRUE)
 				chosen
 			}) %>% unlist()
-
-			T <- Matrix::rowSums(sce[,chosen_cells]) %>% as.data.frame()
+			T <- Matrix::rowSums(sce[,as.vector(chosen_cells)]) %>% as.data.frame()
 			#     T <- Matrix::rowSums(sce[,colnames(sce) %in% chosen_cells]) %>% as.data.frame()
 			colnames(T) = paste("mix",y,sep="")
 
@@ -95,6 +91,7 @@ Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.v
 			names(P1)<-phenoData$cellID
 			P = data.frame(table(P1[chosen_cells]),stringsAsFactors = FALSE) 
 			colnames(P) = c("CT","expected")
+            colnames(T) = paste("mix",y,sep="")
 			P$mix = paste("mix",y,sep="")
 			Tissues[[y]] <- T
 			Proportions[[y]] <- P
@@ -109,7 +106,7 @@ Generator <- function(sce, phenoData, sampleCT = FALSE, propsample = TRUE, pct.v
 						fun.aggregate = sum) %>% data.frame(.,row.names = 1) 
 
 	P = P[,gtools::mixedsort(colnames(P))]
-
+    
 	return(list(T = T, P = P))
   
 } 
@@ -375,7 +372,7 @@ read_bulk<-function(dataset){
 	data = readRDS(dataset)
 	
 	if (class(data)== "list") {
-		return data
+		return(data)
 	} else{
 		return(list('data'=data))
 	}
@@ -426,6 +423,7 @@ NormalizationTMM <- function(data){
 
     } else {
 
+        data$samples$lib.size[data$samples$lib.size<1] = 100
         data <- edgeR::calcNormFactors(data, method = "TMM")  
 
     }
@@ -540,7 +538,6 @@ marker_selection<-function(train){
 	})
 	train = train[Matrix::rowSums(keep) > 0,]
 	train2 = NormalizationTMM(train)
-
 	# INITIAL CONTRASTS for marker selection WITHOUT taking correlated CT into account 
 	#[compare one group with average expression of all other groups]
 	annotation = factor(colnames(train2))
@@ -549,7 +546,6 @@ marker_selection<-function(train){
 	cont.matrix <- matrix((-1/ncol(design)),nrow=ncol(design),ncol=ncol(design))
 	colnames(cont.matrix) <- colnames(design)
 	diag(cont.matrix) <- (ncol(design)-1)/ncol(design)
-
 	v <- limma::voom(train2, design=design, plot=FALSE) 
 	fit <- limma::lmFit(v, design)
 	fit2 <- limma::contrasts.fit(fit, cont.matrix)
@@ -569,15 +565,14 @@ prepare_train<-function(train, train_cell_names){
 		group[[i]] <- which(cellType %in% i)
 	}
 	#C should be made with the mean (not sum) to agree with the way markers were selected
-	C = lapply(group,function(x) Matrix::rowMeans(train[,x])) 
+	C = lapply(group, function(x) if(class(train[,x])=='numeric') train[,x] else Matrix::rowMeans(train[,x]) )
 	C = round(do.call(cbind.data.frame, C))
-
 	refProfiles.var = lapply(group,function(x) train[,x])
 # 	refProfiles.var = lapply(refProfiles.var, function(x) matrixStats::rowSds(Matrix::as.matrix(x)))
-    refProfiles.var = lapply(refProfiles.var, function(x) sparseMatrixStats::rowSds(x))   
+#     refProfiles.var = lapply(refProfiles.var, function(x) sparseMatrixStats::rowSds(x))  
+    refProfiles.var = lapply(refProfiles.var, function(x) if(class(x)=='numeric') x else sparseMatrixStats::rowSds(x)) 
 	refProfiles.var = round(do.call(cbind.data.frame, refProfiles.var))
 	rownames(refProfiles.var) <- rownames(train)
-
 	markers = marker_selection(train)
 	return(list('train_cellID'=train_cellID, 'C'=C, 'ref' = refProfiles.var, 'markers'=markers))
 }
